@@ -54,9 +54,6 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 
     protocol::spawn_protocol_task(Arc::clone(&app), session, protocol_bootstrap, protocol_rx);
 
-    // Kick off initial library load
-    io_tx.send(IoEvent::LoadLibrary)?;
-
     // Set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();

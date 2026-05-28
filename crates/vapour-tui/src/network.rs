@@ -18,14 +18,28 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
                     a.filtered_games = (0..len).collect();
                     a.loading.library = false;
                 }
-                Err(e) => set_error(&app, e.to_string()),
+                Err(e) => {
+                    let mut a = app.lock().unwrap();
+                    a.loading.library = false;
+                    // Missing api_key or steam_id is expected in protocol-only mode;
+                    // don't surface it as a blocking error.
+                    if !e.to_string().contains("api_key") && !e.to_string().contains("steam_id") {
+                        a.set_error(e.to_string());
+                    }
+                }
             }
         }
 
         IoEvent::LoadFriendIds => {
             app.lock().unwrap().loading.friends = true;
             match client.get_friend_list().await {
-                Err(e) => set_error(&app, e.to_string()),
+                Err(e) => {
+                    let mut a = app.lock().unwrap();
+                    a.loading.friends = false;
+                    if !e.to_string().contains("api_key") {
+                        a.set_error(e.to_string());
+                    }
+                }
                 Ok(ids) => {
                     let has_ids = !ids.is_empty();
                     {
@@ -173,6 +187,15 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
             let _ = tx.send(IoEvent::LoadLibrary);
             let _ = tx.send(IoEvent::LoadFriendIds);
             let _ = tx.send(IoEvent::LoadWishlist);
+        }
+
+        IoEvent::LookupGameNames(app_ids) => {
+            match client.get_app_names(&app_ids).await {
+                Ok(names) => {
+                    app.lock().unwrap().game_name_cache.extend(names);
+                }
+                Err(_) => {}
+            }
         }
     }
 }
