@@ -67,6 +67,8 @@ pub fn handle(app: &mut App, key: Key) {
 }
 
 pub fn switch_tab(app: &mut App, tab: u8) {
+    use crate::protocol::ProtocolStatus;
+
     let route = match tab {
         0 => Route::library(),
         1 => Route::friends(),
@@ -77,6 +79,12 @@ pub fn switch_tab(app: &mut App, tab: u8) {
     let event = route.load_event();
     app.navigation_stack = vec![route];
     if let Some(ev) = event {
+        // Skip Web API friend loading when the protocol connection is active.
+        if matches!(ev, IoEvent::LoadFriendIds)
+            && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
+        {
+            return;
+        }
         app.dispatch(ev);
     }
 }

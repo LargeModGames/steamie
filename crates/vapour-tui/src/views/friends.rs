@@ -5,12 +5,50 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem},
 };
+use vapour_protocol::{Persona, PersonaState};
 
 use crate::app::App;
+use crate::protocol::ProtocolStatus;
 use crate::theme::Theme;
 use crate::views::library::draw_loading;
 
 pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
+    if matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. }) {
+        draw_protocol_friends(f, app, theme, area);
+    } else {
+        draw_web_api_friends(f, app, theme, area);
+    }
+}
+
+fn draw_protocol_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
+    let mut friends: Vec<&Persona> = app.protocol_friends.iter().collect();
+    // Sort: in-game first, then online, then offline; alphabetical within each group.
+    friends.sort_by_key(|p| {
+        let order = if p.game_app_id.is_some() {
+            0u8
+        } else if p.state != PersonaState::Offline && p.state != PersonaState::Invisible {
+            1
+        } else {
+            2
+        };
+        (order, p.name.to_lowercase())
+    });
+
+    let online = friends
+        .iter()
+        .filter(|p| p.state != PersonaState::Offline && p.state != PersonaState::Invisible)
+        .count();
+
+    let items: Vec<ListItem> = friends
+        .iter()
+        .map(|p| ListItem::new(persona_line(p, theme)))
+        .collect();
+
+    let title = format!(" Friends ({} online / {}) ", online, friends.len());
+    render_list(f, items, &title, theme, area, &mut app.friends_state.clone());
+}
+
+fn draw_web_api_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     if app.loading.friends && app.friends.is_empty() {
         return draw_loading(f, theme, area, "Friends");
     }
@@ -56,13 +94,62 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         format!(" Friends ({} online / {}) ", online, loaded)
     };
 
+    render_list(f, items, &title, theme, area, &mut app.friends_state.clone());
+}
+
+fn persona_line<'a>(p: &'a Persona, theme: &Theme) -> Line<'a> {
+    let (dot, dot_color) = match &p.state {
+        PersonaState::Offline | PersonaState::Invisible => ("○", theme.offline),
+        _ if p.game_app_id.is_some() => ("●", theme.ingame),
+        _ => ("●", theme.online),
+    };
+
+    let state_label = match &p.state {
+        PersonaState::Online => "",
+        PersonaState::Busy => "Busy",
+        PersonaState::Away => "Away",
+        PersonaState::Snooze => "Snooze",
+        PersonaState::LookingToTrade => "Looking to Trade",
+        PersonaState::LookingToPlay => "Looking to Play",
+        PersonaState::Invisible => "Invisible",
+        PersonaState::Offline => "Offline",
+    };
+
+    let mut spans = vec![
+        Span::styled(format!("{} ", dot), Style::default().fg(dot_color)),
+        Span::styled(p.name.clone(), Style::default().fg(theme.fg)),
+    ];
+
+    if let Some(game) = &p.game_name {
+        spans.push(Span::styled(
+            format!("  — {}", game),
+            Style::default().fg(theme.ingame),
+        ));
+    } else if !state_label.is_empty() {
+        spans.push(Span::styled(
+            format!("  {}", state_label),
+            Style::default().fg(theme.muted),
+        ));
+    }
+
+    Line::from(spans)
+}
+
+fn render_list(
+    f: &mut Frame,
+    items: Vec<ListItem>,
+    title: &str,
+    theme: &Theme,
+    area: Rect,
+    state: &mut ratatui::widgets::ListState,
+) {
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(theme.border_focused))
-                .title(title),
+                .title(title.to_owned()),
         )
         .highlight_style(
             Style::default()
@@ -71,7 +158,5 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("> ");
-
-    let mut state = app.friends_state;
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, area, state);
 }

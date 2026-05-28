@@ -1,9 +1,10 @@
 use std::sync::mpsc;
 
 use ratatui::widgets::ListState;
+use tokio::sync::mpsc as tokio_mpsc;
 use vapour_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
 use vapour_core::Config;
-use tokio::sync::mpsc as tokio_mpsc;
+use vapour_protocol::{Persona, PersonaState, RunCommand};
 
 use crate::io_event::IoEvent;
 use crate::protocol::{ProtocolCommand, ProtocolStatus};
@@ -33,6 +34,9 @@ pub struct App {
     pub protocol_status: ProtocolStatus,
     pub protocol_input: String,
     pub protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
+    pub protocol_friends: Vec<Persona>,
+    pub friend_cmd_tx: Option<tokio_mpsc::UnboundedSender<RunCommand>>,
+    pub own_persona_state: PersonaState,
     #[allow(dead_code)]
     pub config: Config,
 }
@@ -88,6 +92,9 @@ impl App {
             protocol_status: ProtocolStatus::Disconnected,
             protocol_input: String::new(),
             protocol_tx,
+            protocol_friends: vec![],
+            friend_cmd_tx: None,
+            own_persona_state: PersonaState::Online,
             config,
         }
     }
