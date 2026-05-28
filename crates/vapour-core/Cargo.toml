@@ -1,0 +1,15 @@
+[package]
+name = "vapour-core"
+version = "0.1.0"
+edition = "2024"
+description = "Config, session, and cache for Vapour"
+license = "GPL-3.0-only"
+
+[dependencies]
+vapour-api = { path = "../vapour-api" }
+vapour-protocol = { path = "../../../vapour-protocol" }
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+toml = "0.8"
+dirs = "6"

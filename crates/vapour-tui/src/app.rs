@@ -1,0 +1,156 @@
+use std::sync::mpsc;
+
+use ratatui::widgets::ListState;
+use vapour_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
+use vapour_core::Config;
+
+use crate::io_event::IoEvent;
+use crate::routes::{ActiveBlock, Route};
+
+pub struct App {
+    pub navigation_stack: Vec<Route>,
+    pub games: Vec<Game>,
+    pub filtered_games: Vec<usize>,
+    pub friend_ids: Vec<String>,      // all IDs from API
+    pub friends: Vec<PlayerSummary>,  // summaries loaded so far
+    pub wishlist: Vec<WishlistItem>,
+    pub news_feed: Vec<NewsItem>,
+    pub selected_game: Option<AppDetails>,
+    pub achievements: Vec<Achievement>,
+    pub library_state: ListState,
+    pub friends_state: ListState,
+    pub wishlist_state: ListState,
+    pub news_state: ListState,
+    pub achievements_state: ListState,
+    pub search_input: String,
+    pub is_searching: bool,
+    pub pending_g: bool,
+    pub loading: ViewLoading,
+    pub error: Option<String>,
+    pub io_tx: mpsc::Sender<IoEvent>,
+    #[allow(dead_code)]
+    pub config: Config,
+}
+
+/// Per-view loading flags — lets the UI stay interactive while any single view loads.
+#[derive(Default)]
+pub struct ViewLoading {
+    pub library: bool,
+    pub friends: bool,
+    pub wishlist: bool,
+    pub news: bool,
+    pub game_detail: bool,
+}
+
+impl App {
+    pub fn new(io_tx: mpsc::Sender<IoEvent>, config: Config) -> Self {
+        let mut library_state = ListState::default();
+        library_state.select(Some(0));
+        let mut friends_state = ListState::default();
+        friends_state.select(Some(0));
+        let mut wishlist_state = ListState::default();
+        wishlist_state.select(Some(0));
+        let mut news_state = ListState::default();
+        news_state.select(Some(0));
+        let mut achievements_state = ListState::default();
+        achievements_state.select(Some(0));
+
+        Self {
+            navigation_stack: vec![Route::library()],
+            games: vec![],
+            filtered_games: vec![],
+            friend_ids: vec![],
+            friends: vec![],
+            wishlist: vec![],
+            news_feed: vec![],
+            selected_game: None,
+            achievements: vec![],
+            library_state,
+            friends_state,
+            wishlist_state,
+            news_state,
+            achievements_state,
+            search_input: String::new(),
+            is_searching: false,
+            pending_g: false,
+            loading: ViewLoading::default(),
+            error: None,
+            io_tx,
+            config,
+        }
+    }
+
+    pub fn current_route(&self) -> &Route {
+        self.navigation_stack.last().expect("navigation stack is never empty")
+    }
+
+    pub fn push_route(&mut self, route: Route) {
+        self.navigation_stack.push(route);
+    }
+
+    pub fn pop_route(&mut self) {
+        if self.navigation_stack.len() > 1 {
+            self.navigation_stack.pop();
+        }
+    }
+
+    pub fn active_block(&self) -> &ActiveBlock {
+        &self.current_route().active_block
+    }
+
+    pub fn dispatch(&self, event: IoEvent) {
+        let _ = self.io_tx.send(event);
+    }
+
+    pub fn set_error(&mut self, msg: String) {
+        self.error = Some(msg);
+        self.loading = ViewLoading::default();
+    }
+
+    pub fn clear_error(&mut self) {
+        self.error = None;
+    }
+
+    pub fn update_search(&mut self) {
+        let q = self.search_input.to_lowercase();
+        if q.is_empty() {
+            self.filtered_games = (0..self.games.len()).collect();
+        } else {
+            self.filtered_games = self
+                .games
+                .iter()
+                .enumerate()
+                .filter(|(_, g)| g.display_name().to_lowercase().contains(&q))
+                .map(|(i, _)| i)
+                .collect();
+        }
+        self.library_state.select(if self.filtered_games.is_empty() { None } else { Some(0) });
+    }
+
+    pub fn visible_games(&self) -> Vec<&Game> {
+        self.filtered_games.iter().map(|&i| &self.games[i]).collect()
+    }
+
+    pub fn scroll_down(state: &mut ListState, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let next = state.selected().map_or(0, |i| (i + 1).min(len - 1));
+        state.select(Some(next));
+    }
+
+    pub fn scroll_up(state: &mut ListState) {
+        let prev = state.selected().map_or(0, |i| i.saturating_sub(1));
+        state.select(Some(prev));
+    }
+
+    pub fn scroll_top(state: &mut ListState) {
+        state.select(Some(0));
+    }
+
+    pub fn scroll_bottom(state: &mut ListState, len: usize) {
+        if len > 0 {
+            state.select(Some(len - 1));
+        }
+    }
+}
