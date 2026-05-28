@@ -29,15 +29,15 @@ pub fn handle(app: &mut App, key: Key) {
         }
         Key::Enter => {
             app.pending_g = false;
-            if let Some(sel) = app.library_state.selected() {
-                if let Some(&game_idx) = app.filtered_games.get(sel) {
-                    let appid = app.games[game_idx].appid;
-                    app.selected_game = None;
-                    app.achievements.clear();
-                    app.push_route(Route::game_detail());
-                    app.dispatch(IoEvent::LoadGameDetail(appid));
-                    app.dispatch(IoEvent::LoadAchievements(appid));
-                }
+            if let Some(sel) = app.library_state.selected()
+                && let Some(&game_idx) = app.filtered_games.get(sel)
+            {
+                let appid = app.games[game_idx].appid;
+                app.selected_game = None;
+                app.achievements.clear();
+                app.push_route(Route::game_detail());
+                app.dispatch(IoEvent::LoadGameDetail(appid));
+                app.dispatch(IoEvent::LoadAchievements(appid));
             }
         }
         Key::Char('/') => {

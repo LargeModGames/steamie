@@ -3,8 +3,10 @@ use std::sync::mpsc;
 use ratatui::widgets::ListState;
 use vapour_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
 use vapour_core::Config;
+use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::io_event::IoEvent;
+use crate::protocol::{ProtocolCommand, ProtocolStatus};
 use crate::routes::{ActiveBlock, Route};
 
 pub struct App {
@@ -28,6 +30,9 @@ pub struct App {
     pub loading: ViewLoading,
     pub error: Option<String>,
     pub io_tx: mpsc::Sender<IoEvent>,
+    pub protocol_status: ProtocolStatus,
+    pub protocol_input: String,
+    pub protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
     #[allow(dead_code)]
     pub config: Config,
 }
@@ -43,7 +48,11 @@ pub struct ViewLoading {
 }
 
 impl App {
-    pub fn new(io_tx: mpsc::Sender<IoEvent>, config: Config) -> Self {
+    pub fn new(
+        io_tx: mpsc::Sender<IoEvent>,
+        protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
+        config: Config,
+    ) -> Self {
         let mut library_state = ListState::default();
         library_state.select(Some(0));
         let mut friends_state = ListState::default();
@@ -76,6 +85,9 @@ impl App {
             loading: ViewLoading::default(),
             error: None,
             io_tx,
+            protocol_status: ProtocolStatus::Disconnected,
+            protocol_input: String::new(),
+            protocol_tx,
             config,
         }
     }
@@ -109,6 +121,20 @@ impl App {
 
     pub fn clear_error(&mut self) {
         self.error = None;
+    }
+
+    pub fn protocol_modal_active(&self) -> bool {
+        self.protocol_status.modal_visible()
+    }
+
+    pub fn submit_guard_code(&mut self) {
+        if self.protocol_input.is_empty() {
+            return;
+        }
+
+        let code = std::mem::take(&mut self.protocol_input);
+        let _ = self.protocol_tx.send(ProtocolCommand::SubmitGuardCode(code));
+        self.protocol_status = ProtocolStatus::Connecting;
     }
 
     pub fn update_search(&mut self) {

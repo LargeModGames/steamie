@@ -72,6 +72,6 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         )
         .highlight_symbol("> ");
 
-    let mut state = app.friends_state.clone();
+    let mut state = app.friends_state;
     f.render_stateful_widget(list, area, &mut state);
 }

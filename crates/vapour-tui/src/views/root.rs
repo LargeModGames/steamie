@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
+use crate::protocol::{ProtocolGuardKind, ProtocolStatus};
 use crate::routes::RouteId;
 use crate::theme::Theme;
 
@@ -52,6 +53,9 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
     if app.loading.game_detail && app.selected_game.is_none() {
         super::loading::draw(f, theme, area);
     }
+    if app.protocol_modal_active() {
+        super::auth::draw(f, app, theme, area);
+    }
 }
 
 fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
@@ -77,13 +81,35 @@ fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
-    let hints = if app.is_searching {
+    let protocol = match &app.protocol_status {
+        ProtocolStatus::Disconnected => "○ Web API only".to_owned(),
+        ProtocolStatus::Connecting => "◌ Connecting to Steam".to_owned(),
+        ProtocolStatus::AwaitingQrScan { .. } => "◎ Scan Steam QR".to_owned(),
+        ProtocolStatus::AwaitingGuardCode { kind } => match kind {
+            ProtocolGuardKind::EmailCode => "◎ Awaiting email code".to_owned(),
+            ProtocolGuardKind::DeviceCode => "◎ Awaiting Steam Guard code".to_owned(),
+            ProtocolGuardKind::DeviceConfirmation => "◎ Approve in Steam app".to_owned(),
+        },
+        ProtocolStatus::LoggedOn { account_name } => format!("● Connected as {account_name}"),
+        ProtocolStatus::Failed(message) => format!("○ Web API only ({message})"),
+    };
+    let hints = if app.protocol_modal_active() {
+        if app.protocol_status.accepts_text_input() {
+            "  Enter submit  Esc cancel"
+        } else {
+            "  Esc cancel"
+        }
+    } else if app.is_searching {
         "  Enter confirm  Esc cancel  (type to filter)"
     } else {
         "  ? help  / search  r reload  q quit"
     };
 
-    let spans = vec![Span::styled(hints, Style::default().fg(theme.muted))];
+    let spans = vec![
+        Span::styled(protocol, Style::default().fg(theme.fg)),
+        Span::raw("  "),
+        Span::styled(hints, Style::default().fg(theme.muted)),
+    ];
     let bar = Paragraph::new(Line::from(spans))
         .style(Style::default().bg(theme.status_bar_bg));
     f.render_widget(bar, area);

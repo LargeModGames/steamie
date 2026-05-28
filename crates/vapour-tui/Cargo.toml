@@ -12,9 +12,16 @@ path = "src/main.rs"
 [dependencies]
 vapour-core = { path = "../vapour-core" }
 vapour-api = { path = "../vapour-api" }
+vapour-protocol = { path = "../../../vapour-protocol" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 ratatui = { version = "0.30", features = ["crossterm"] }
 crossterm = "0.29"
 clap = { version = "4", features = ["derive"] }
 futures = "0.3"
+qrcode = "0.14"
+rpassword = "7"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+dirs = "6"

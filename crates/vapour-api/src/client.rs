@@ -6,6 +6,7 @@ use crate::models::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, Wish
 const STEAM_API_BASE: &str = "https://api.steampowered.com";
 const STORE_API_BASE: &str = "https://store.steampowered.com";
 
+#[derive(Clone)]
 pub struct SteamApiClient {
     http: reqwest::Client,
     api_key: String,
