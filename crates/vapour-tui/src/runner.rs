@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -7,8 +7,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use vapour_api::SteamApiClient;
-use vapour_core::Config;
+use vapour_core::{AuthMethod, Config, Session};
 
 use crate::app::App;
 use crate::event::{Event, Events};
@@ -16,21 +15,27 @@ use crate::event::Key;
 use crate::handlers;
 use crate::io_event::IoEvent;
 use crate::network;
+use crate::protocol;
 use crate::theme::Theme;
 use crate::views::root;
 
 pub async fn run(config: Config) -> anyhow::Result<()> {
     let theme = Theme::from_name(&config.ui.theme.clone());
     let tick_rate = config.ui.tick_rate_ms;
-    let client = Arc::new(SteamApiClient::new(
-        config.api_key.clone(),
-        config.steam_id.clone(),
-    ));
+    let session = Session::new(config.clone())?;
+    let credential_prompt = if matches!(session.preferred_auth_method(), AuthMethod::Credentials) {
+        Some(prompt_for_credentials(config.auth.account_name.clone())?)
+    } else {
+        None
+    };
+    let protocol_bootstrap = protocol::build_bootstrap(&session, credential_prompt);
+    let client = Arc::new(session.api_client.clone());
 
     // Set up channels
     let (io_tx, io_rx) = std::sync::mpsc::channel::<IoEvent>();
+    let (protocol_tx, protocol_rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let app = Arc::new(Mutex::new(App::new(io_tx.clone(), config)));
+    let app = Arc::new(Mutex::new(App::new(io_tx.clone(), protocol_tx, config)));
 
     // Spawn network dispatch task.
     // spawn_blocking keeps the sync recv off the async executor thread pool.
@@ -46,6 +51,8 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
             });
         }
     });
+
+    protocol::spawn_protocol_task(Arc::clone(&app), session, protocol_bootstrap, protocol_rx);
 
     // Kick off initial library load
     io_tx.send(IoEvent::LoadLibrary)?;
@@ -70,10 +77,17 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
         }
 
         match events.rx.recv_timeout(frame_timeout) {
-            Ok(Event::Key(Key::Char('q'))) | Ok(Event::Key(Key::Ctrl('c'))) => break,
             Ok(Event::Key(key)) => {
                 let mut app_lock = app.lock().unwrap();
-                handlers::handle_key(&mut app_lock, key);
+                if app_lock.protocol_modal_active() {
+                    handlers::handle_key(&mut app_lock, key);
+                    continue;
+                }
+
+                match key {
+                    Key::Char('q') | Key::Ctrl('c') => break,
+                    other => handlers::handle_key(&mut app_lock, other),
+                }
             }
             Ok(Event::Resize) | Ok(Event::Tick) | Err(_) => {}
         }
@@ -85,4 +99,21 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     terminal.show_cursor()?;
 
     Ok(())
+}
+
+fn prompt_for_credentials(account_name_hint: Option<String>) -> anyhow::Result<(String, String)> {
+    let account = match account_name_hint {
+        Some(account_name) => account_name,
+        None => {
+            print!("Steam account name: ");
+            io::stdout().flush()?;
+
+            let mut account_name = String::new();
+            io::stdin().read_line(&mut account_name)?;
+            account_name.trim().to_owned()
+        }
+    };
+
+    let password = rpassword::prompt_password("Steam password: ")?;
+    Ok((account, password))
 }

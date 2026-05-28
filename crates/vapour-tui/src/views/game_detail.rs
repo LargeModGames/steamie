@@ -140,7 +140,7 @@ fn draw_achievements_panel(f: &mut Frame, app: &App, theme: &Theme, area: Rect) 
         .highlight_style(Style::default().bg(theme.highlight).fg(theme.highlight_text))
         .highlight_symbol("> ");
 
-    let mut state = app.achievements_state.clone();
+    let mut state = app.achievements_state;
     f.render_stateful_widget(list, area, &mut state);
 }
 
