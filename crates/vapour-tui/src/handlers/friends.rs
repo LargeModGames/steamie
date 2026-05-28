@@ -1,14 +1,19 @@
+use vapour_protocol::{PersonaState, RunCommand};
+
 use crate::app::App;
 use crate::event::Key;
+use crate::protocol::ProtocolStatus;
 use crate::routes::ActiveBlock;
 
 use super::library::switch_tab;
 
 pub fn handle(app: &mut App, key: Key) {
+    let protocol_active = matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. });
+
     match key {
         Key::Char('j') | Key::Down => {
             app.pending_g = false;
-            let len = app.friends.len();
+            let len = friends_len(app, protocol_active);
             App::scroll_down(&mut app.friends_state, len);
         }
         Key::Char('k') | Key::Up => {
@@ -25,12 +30,18 @@ pub fn handle(app: &mut App, key: Key) {
         }
         Key::Char('G') => {
             app.pending_g = false;
-            let len = app.friends.len();
+            let len = friends_len(app, protocol_active);
             App::scroll_bottom(&mut app.friends_state, len);
         }
         Key::Char('r') => {
             app.pending_g = false;
-            app.dispatch(crate::io_event::IoEvent::LoadFriendIds);
+            if !protocol_active {
+                app.dispatch(crate::io_event::IoEvent::LoadFriendIds);
+            }
+        }
+        Key::Char('s') if protocol_active => {
+            app.pending_g = false;
+            cycle_persona_state(app);
         }
         Key::Char('1') => switch_tab(app, 0),
         Key::Char('2') => switch_tab(app, 1),
@@ -45,4 +56,24 @@ pub fn handle(app: &mut App, key: Key) {
             app.pending_g = false;
         }
     }
+}
+
+fn friends_len(app: &App, protocol_active: bool) -> usize {
+    if protocol_active {
+        app.protocol_friends.len()
+    } else {
+        app.friends.len()
+    }
+}
+
+/// Cycle: Online → Away → Invisible → Online.
+fn cycle_persona_state(app: &mut App) {
+    let Some(tx) = &app.friend_cmd_tx else { return };
+    let next = match app.own_persona_state {
+        PersonaState::Online => PersonaState::Away,
+        PersonaState::Away => PersonaState::Invisible,
+        _ => PersonaState::Online,
+    };
+    app.own_persona_state = next.clone();
+    let _ = tx.send(RunCommand::SetPersonaState(next));
 }

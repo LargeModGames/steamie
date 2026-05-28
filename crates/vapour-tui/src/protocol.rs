@@ -5,7 +5,10 @@ use tokio::{
     time::{Duration, sleep},
 };
 use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
-use vapour_protocol::{AuthEvent, AuthMethod, Error as ProtocolError, GuardKind, LoggedOn};
+use vapour_protocol::{
+    AuthEvent, AuthMethod, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn, Persona,
+    RunCommand,
+};
 
 use crate::app::App;
 
@@ -106,8 +109,48 @@ async fn run_protocol_task(
         },
     );
 
-    session.protocol_client.run().await?;
+    let (run_cmd_tx, run_cmd_rx) = mpsc::unbounded_channel::<RunCommand>();
+    let (friends_evt_tx, mut friends_evt_rx) = mpsc::unbounded_channel::<FriendsEvent>();
+
+    {
+        let mut app = app.lock().unwrap();
+        app.friend_cmd_tx = Some(run_cmd_tx);
+    }
+
+    // Drain friend events into App on a background task.
+    let app_friends = Arc::clone(app);
+    tokio::spawn(async move {
+        while let Some(event) = friends_evt_rx.recv().await {
+            let mut app = app_friends.lock().unwrap();
+            match event {
+                FriendsEvent::PersonaStates(personas) => {
+                    merge_personas(&mut app.protocol_friends, personas);
+                }
+                FriendsEvent::FriendsList(friends) => {
+                    // Retain only entries whose steamid is still in the friends list.
+                    let ids: std::collections::HashSet<u64> =
+                        friends.iter().map(|f| f.steamid).collect();
+                    app.protocol_friends.retain(|p| ids.contains(&p.steamid));
+                }
+            }
+        }
+    });
+
+    session
+        .protocol_client
+        .run(run_cmd_rx, friends_evt_tx)
+        .await?;
     Ok(())
+}
+
+fn merge_personas(existing: &mut Vec<Persona>, updates: Vec<Persona>) {
+    for update in updates {
+        if let Some(entry) = existing.iter_mut().find(|p| p.steamid == update.steamid) {
+            *entry = update;
+        } else {
+            existing.push(update);
+        }
+    }
 }
 
 async fn drive_auth(

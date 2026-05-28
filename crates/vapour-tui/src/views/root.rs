@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Tabs},
 };
+use vapour_protocol::PersonaState;
 
 use crate::app::App;
 use crate::protocol::{ProtocolGuardKind, ProtocolStatus};
@@ -90,7 +91,16 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
             ProtocolGuardKind::DeviceCode => "◎ Awaiting Steam Guard code".to_owned(),
             ProtocolGuardKind::DeviceConfirmation => "◎ Approve in Steam app".to_owned(),
         },
-        ProtocolStatus::LoggedOn { account_name } => format!("● Connected as {account_name}"),
+        ProtocolStatus::LoggedOn { account_name } => {
+            let state_label = match app.own_persona_state {
+                PersonaState::Online => "",
+                PersonaState::Away => " [Away]",
+                PersonaState::Invisible => " [Invisible]",
+                PersonaState::Busy => " [Busy]",
+                _ => "",
+            };
+            format!("● Connected as {account_name}{state_label}")
+        }
         ProtocolStatus::Failed(message) => format!("○ Web API only ({message})"),
     };
     let hints = if app.protocol_modal_active() {
@@ -101,6 +111,10 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         }
     } else if app.is_searching {
         "  Enter confirm  Esc cancel  (type to filter)"
+    } else if matches!(app.current_route().id, RouteId::Friends)
+        && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
+    {
+        "  s status  ? help  r reload  q quit"
     } else {
         "  ? help  / search  r reload  q quit"
     };
