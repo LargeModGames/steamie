@@ -5,6 +5,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
+use crate::io_event::IoEvent;
 use vapour_protocol::{
     AuthEvent, AuthMethod, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn, Persona,
     RunCommand,
@@ -102,12 +103,24 @@ async fn run_protocol_task(
         account_name: logged_on.account_name.clone(),
         refresh_token: logged_on.refresh_token.clone(),
     })?;
+
+    // Propagate the SteamID to the Web API client so key-backed features
+    // (library, achievements) work even when steam_id was absent from config.
+    session.api_client.set_steam_id(logged_on.steamid.to_string());
+
     set_status(
         app,
         ProtocolStatus::LoggedOn {
             account_name: logged_on.account_name.clone(),
         },
     );
+
+    // Kick off Web API loads now that we have a steam_id.
+    {
+        let a = app.lock().unwrap();
+        let _ = a.io_tx.send(IoEvent::LoadLibrary);
+        let _ = a.io_tx.send(IoEvent::LoadWishlist);
+    }
 
     let (run_cmd_tx, run_cmd_rx) = mpsc::unbounded_channel::<RunCommand>();
     let (friends_evt_tx, mut friends_evt_rx) = mpsc::unbounded_channel::<FriendsEvent>();
@@ -125,6 +138,7 @@ async fn run_protocol_task(
             match event {
                 FriendsEvent::PersonaStates(personas) => {
                     merge_personas(&mut app.protocol_friends, personas);
+                    queue_game_name_lookups(&mut app);
                 }
                 FriendsEvent::FriendsList(friends) => {
                     // Retain only entries whose steamid is still in the friends list.
@@ -146,7 +160,19 @@ async fn run_protocol_task(
 fn merge_personas(existing: &mut Vec<Persona>, updates: Vec<Persona>) {
     for update in updates {
         if let Some(entry) = existing.iter_mut().find(|p| p.steamid == update.steamid) {
-            *entry = update;
+            entry.state = update.state;
+            if !update.name.is_empty() {
+                entry.name = update.name;
+            }
+            // Only overwrite game fields when the update explicitly included them.
+            // An absent game_played_app_id means "unchanged", not "not in game".
+            if update.game_fields_present {
+                entry.game_app_id = update.game_app_id;
+                entry.game_name = update.game_name;
+            }
+            if update.avatar_hash.is_some() {
+                entry.avatar_hash = update.avatar_hash;
+            }
         } else {
             existing.push(update);
         }
@@ -258,6 +284,30 @@ pub fn build_bootstrap(session: &Session, credentials: Option<(String, String)>)
 
 fn should_retry_auth(method: &AuthMethod, error: &ProtocolError) -> bool {
     matches!(method, AuthMethod::Qr | AuthMethod::Credentials { .. }) && is_closed_error(error)
+}
+
+fn queue_game_name_lookups(app: &mut App) {
+    use std::collections::HashSet;
+    use crate::io_event::IoEvent;
+
+    let unknown: Vec<u32> = app
+        .protocol_friends
+        .iter()
+        .filter_map(|p| p.game_app_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .filter(|id| {
+            !app.games.iter().any(|g| g.appid == *id) && !app.game_name_cache.contains_key(id)
+        })
+        .collect();
+
+    if !unknown.is_empty() {
+        // Mark IDs as pending so concurrent ticks don't queue duplicate requests.
+        for id in &unknown {
+            app.game_name_cache.entry(*id).or_insert_with(String::new);
+        }
+        let _ = app.io_tx.send(IoEvent::LookupGameNames(unknown));
+    }
 }
 
 fn is_closed_error(error: &ProtocolError) -> bool {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ratatui::{
     Frame,
     layout::Rect,
@@ -5,6 +7,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem},
 };
+use vapour_api::Game;
 use vapour_protocol::{Persona, PersonaState};
 
 use crate::app::App;
@@ -41,7 +44,7 @@ fn draw_protocol_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
 
     let items: Vec<ListItem> = friends
         .iter()
-        .map(|p| ListItem::new(persona_line(p, theme)))
+        .map(|p| ListItem::new(persona_line(p, theme, &app.games, &app.game_name_cache)))
         .collect();
 
     let title = format!(" Friends ({} online / {}) ", online, friends.len());
@@ -97,7 +100,7 @@ fn draw_web_api_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     render_list(f, items, &title, theme, area, &mut app.friends_state.clone());
 }
 
-fn persona_line<'a>(p: &'a Persona, theme: &Theme) -> Line<'a> {
+fn persona_line<'a>(p: &'a Persona, theme: &Theme, games: &[Game], cache: &HashMap<u32, String>) -> Line<'a> {
     let (dot, dot_color) = match &p.state {
         PersonaState::Offline | PersonaState::Invisible => ("○", theme.offline),
         _ if p.game_app_id.is_some() => ("●", theme.ingame),
@@ -120,9 +123,20 @@ fn persona_line<'a>(p: &'a Persona, theme: &Theme) -> Line<'a> {
         Span::styled(p.name.clone(), Style::default().fg(theme.fg)),
     ];
 
-    if let Some(game) = &p.game_name {
+    if let Some(app_id) = p.game_app_id {
+        // Steam doesn't send game_name for catalogue games; look it up from
+        // the user's library, then the async-fetched cache (for games they
+        // don't own), then the persona field (non-Steam games).
+        let cache_name = cache.get(&app_id).filter(|s| !s.is_empty()).map(|s| s.as_str());
+        let name = games
+            .iter()
+            .find(|g| g.appid == app_id)
+            .and_then(|g| g.name.as_deref())
+            .or(cache_name)
+            .or(p.game_name.as_deref())
+            .unwrap_or("In-Game");
         spans.push(Span::styled(
-            format!("  — {}", game),
+            format!("  — {}", name),
             Style::default().fg(theme.ingame),
         ));
     } else if !state_label.is_empty() {

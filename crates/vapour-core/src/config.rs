@@ -4,8 +4,10 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Config {
-    pub api_key: String,
-    pub steam_id: String,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub steam_id: Option<String>,
     #[serde(default)]
     pub auth: AuthConfig,
     #[serde(default)]
@@ -58,7 +60,7 @@ impl Config {
         let path = config_path();
         let raw = std::fs::read_to_string(&path).with_context(|| {
             format!(
-                "vapour: no config found at {}\n\nCreate it with:\n\n  api_key = \"YOUR_API_KEY\"    # https://steamcommunity.com/dev/apikey\n  steam_id = \"YOUR_STEAM_ID\"  # 17-digit number from your Steam profile URL\n",
+                "vapour: no config found at {}\n\nCreate it (all fields optional):\n\n  # api_key = \"...\"  # https://steamcommunity.com/dev/apikey (enables library & achievements)\n  # steam_id = \"...\" # auto-detected after login if omitted\n",
                 path.display()
             )
         })?;
@@ -86,15 +88,24 @@ mod tests {
 
     #[test]
     fn config_defaults_auth_to_qr() -> Result<()> {
+        let config: Config = toml::from_str("")?;
+        assert_eq!(config.auth.method, AuthMethod::Qr);
+        assert_eq!(config.auth.account_name, None);
+        assert_eq!(config.api_key, None);
+        assert_eq!(config.steam_id, None);
+        Ok(())
+    }
+
+    #[test]
+    fn config_parses_optional_api_key_and_steam_id() -> Result<()> {
         let config: Config = toml::from_str(
             r#"
 api_key = "key"
 steam_id = "76561198000000000"
 "#,
         )?;
-
-        assert_eq!(config.auth.method, AuthMethod::Qr);
-        assert_eq!(config.auth.account_name, None);
+        assert_eq!(config.api_key.as_deref(), Some("key"));
+        assert_eq!(config.steam_id.as_deref(), Some("76561198000000000"));
         Ok(())
     }
 
@@ -102,9 +113,6 @@ steam_id = "76561198000000000"
     fn config_parses_credentials_auth() -> Result<()> {
         let config: Config = toml::from_str(
             r#"
-api_key = "key"
-steam_id = "76561198000000000"
-
 [auth]
 method = "credentials"
 account_name = "alice"

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::mpsc;
 
 use ratatui::widgets::ListState;
@@ -36,6 +37,8 @@ pub struct App {
     pub protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
     pub protocol_friends: Vec<Persona>,
     pub friend_cmd_tx: Option<tokio_mpsc::UnboundedSender<RunCommand>>,
+    /// Names for app IDs not in the user's own library, fetched from the Store API.
+    pub game_name_cache: HashMap<u32, String>,
     pub own_persona_state: PersonaState,
     #[allow(dead_code)]
     pub config: Config,
@@ -94,6 +97,7 @@ impl App {
             protocol_tx,
             protocol_friends: vec![],
             friend_cmd_tx: None,
+            game_name_cache: HashMap::new(),
             own_persona_state: PersonaState::Online,
             config,
         }
