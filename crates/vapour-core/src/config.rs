@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 pub struct Config {
     #[serde(default)]
     pub api_key: Option<String>,
@@ -58,13 +58,15 @@ fn default_theme() -> String {
 impl Config {
     pub fn load() -> Result<Self> {
         let path = config_path();
-        let raw = std::fs::read_to_string(&path).with_context(|| {
-            format!(
-                "vapour: no config found at {}\n\nCreate it (all fields optional):\n\n  # api_key = \"...\"  # https://steamcommunity.com/dev/apikey (enables library & achievements)\n  # steam_id = \"...\" # auto-detected after login if omitted\n",
-                path.display()
-            )
-        })?;
-        toml::from_str(&raw).with_context(|| format!("invalid config at {}", path.display()))
+
+        match std::fs::read_to_string(&path) {
+            Ok(raw) => {
+                toml::from_str(&raw)
+                    .with_context(|| format!("invalid config at {}", path.display()))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(e) => Err(e).with_context(|| format!("could not read config at {}", path.display())),
+        }
     }
 
     pub fn load_from(path: PathBuf) -> Result<Self> {

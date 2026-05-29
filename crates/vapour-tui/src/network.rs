@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use tokio::task::JoinSet;
 use vapour_api::SteamApiClient;
+use vapour_protocol::RunCommand;
 
 use crate::app::App;
 use crate::io_event::IoEvent;
@@ -9,6 +10,16 @@ use crate::io_event::IoEvent;
 pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event: IoEvent) {
     match event {
         IoEvent::LoadLibrary => {
+            // When the protocol connection is active, delegate to it and skip the Web API.
+            // The result arrives asynchronously via FriendsEvent::OwnedGames.
+            let cmd_tx = app.lock().unwrap().friend_cmd_tx.clone();
+            if let Some(tx) = cmd_tx {
+                app.lock().unwrap().loading.library = true;
+                let _ = tx.send(RunCommand::GetOwnedGames);
+                return;
+            }
+
+            // Fall back to Web API (requires api_key).
             app.lock().unwrap().loading.library = true;
             match client.get_owned_games().await {
                 Ok(games) => {
@@ -168,6 +179,15 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
         }
 
         IoEvent::LoadAchievements(appid) => {
+            // Prefer the protocol path when connected (no api_key needed).
+            let cmd_tx = app.lock().unwrap().friend_cmd_tx.clone();
+            if let Some(tx) = cmd_tx {
+                let _ = tx.send(RunCommand::GetPlayerAchievements(appid));
+                // Result arrives via FriendsEvent::PlayerAchievements in protocol.rs.
+                return;
+            }
+
+            // Fall back to Web API (requires api_key + steam_id).
             match client.get_achievements(appid).await {
                 Ok(mut achs) => {
                     achs.sort_by(|a, b| {
