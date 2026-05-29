@@ -72,6 +72,13 @@ pub fn spawn_protocol_task(
         if let Err(error) = result {
             set_status(&app, ProtocolStatus::Failed(error.to_string()));
         }
+        // Drop the command sender and clear loading flags so the UI doesn't get
+        // stuck if run() exits early (connection error, CM disconnect, etc.).
+        {
+            let mut app = app.lock().unwrap();
+            app.friend_cmd_tx = None;
+            app.loading.library = false;
+        }
     });
 }
 
@@ -119,14 +126,10 @@ async fn run_protocol_task(
     let (run_cmd_tx, run_cmd_rx) = mpsc::unbounded_channel::<RunCommand>();
     let (friends_evt_tx, mut friends_evt_rx) = mpsc::unbounded_channel::<FriendsEvent>();
 
-    // Pre-queue library load via protocol before the run loop starts.
-    let _ = run_cmd_tx.send(RunCommand::GetOwnedGames);
-
     {
         let mut app = app.lock().unwrap();
         app.friend_cmd_tx = Some(run_cmd_tx);
-        // Library now loads via protocol; wishlist still uses Web API (keyless store endpoint).
-        app.loading.library = true;
+        let _ = app.io_tx.send(IoEvent::LoadLibrary);
         let _ = app.io_tx.send(IoEvent::LoadWishlist);
     }
 
