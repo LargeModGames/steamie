@@ -6,6 +6,7 @@ use tokio::{
 };
 use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use crate::io_event::IoEvent;
+use vapour_api::{Achievement, Game};
 use vapour_protocol::{
     AuthEvent, AuthMethod, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn, Persona,
     RunCommand,
@@ -105,7 +106,7 @@ async fn run_protocol_task(
     })?;
 
     // Propagate the SteamID to the Web API client so key-backed features
-    // (library, achievements) work even when steam_id was absent from config.
+    // that still use the Web API (wishlist, news, store) work without steam_id in config.
     session.api_client.set_steam_id(logged_on.steamid.to_string());
 
     set_status(
@@ -115,22 +116,21 @@ async fn run_protocol_task(
         },
     );
 
-    // Kick off Web API loads now that we have a steam_id.
-    {
-        let a = app.lock().unwrap();
-        let _ = a.io_tx.send(IoEvent::LoadLibrary);
-        let _ = a.io_tx.send(IoEvent::LoadWishlist);
-    }
-
     let (run_cmd_tx, run_cmd_rx) = mpsc::unbounded_channel::<RunCommand>();
     let (friends_evt_tx, mut friends_evt_rx) = mpsc::unbounded_channel::<FriendsEvent>();
+
+    // Pre-queue library load via protocol before the run loop starts.
+    let _ = run_cmd_tx.send(RunCommand::GetOwnedGames);
 
     {
         let mut app = app.lock().unwrap();
         app.friend_cmd_tx = Some(run_cmd_tx);
+        // Library now loads via protocol; wishlist still uses Web API (keyless store endpoint).
+        app.loading.library = true;
+        let _ = app.io_tx.send(IoEvent::LoadWishlist);
     }
 
-    // Drain friend events into App on a background task.
+    // Drain events from the protocol run loop into App on a background task.
     let app_friends = Arc::clone(app);
     tokio::spawn(async move {
         while let Some(event) = friends_evt_rx.recv().await {
@@ -141,10 +141,42 @@ async fn run_protocol_task(
                     queue_game_name_lookups(&mut app);
                 }
                 FriendsEvent::FriendsList(friends) => {
-                    // Retain only entries whose steamid is still in the friends list.
                     let ids: std::collections::HashSet<u64> =
                         friends.iter().map(|f| f.steamid).collect();
                     app.protocol_friends.retain(|p| ids.contains(&p.steamid));
+                }
+                FriendsEvent::OwnedGames(protocol_games) => {
+                    let mut games: Vec<Game> = protocol_games
+                        .into_iter()
+                        .map(|g| Game {
+                            appid: g.appid,
+                            name: if g.name.is_empty() { None } else { Some(g.name) },
+                            playtime_forever: g.playtime_forever.max(0) as u32,
+                            img_icon_url: g.img_icon_url,
+                            rtime_last_played: Some(g.rtime_last_played as u64),
+                        })
+                        .collect();
+                    games.sort_by(|a, b| b.playtime_forever.cmp(&a.playtime_forever));
+                    let len = games.len();
+                    app.games = games;
+                    app.filtered_games = (0..len).collect();
+                    app.loading.library = false;
+                }
+                FriendsEvent::PlayerAchievements { achievements: protocol_achs, .. } => {
+                    let mut achs: Vec<Achievement> = protocol_achs
+                        .into_iter()
+                        .map(|a| Achievement {
+                            apiname: a.apiname,
+                            achieved: if a.achieved { 1 } else { 0 },
+                            unlocktime: a.unlocktime,
+                            name: a.name,
+                            description: a.description,
+                        })
+                        .collect();
+                    achs.sort_by(|a, b| {
+                        b.achieved.cmp(&a.achieved).then(a.display_name().cmp(b.display_name()))
+                    });
+                    app.achievements = achs;
                 }
             }
         }
