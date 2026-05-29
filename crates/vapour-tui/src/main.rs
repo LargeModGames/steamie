@@ -48,7 +48,10 @@ async fn main() {
 }
 
 fn init_tracing() -> Option<tracing_appender::non_blocking::WorkerGuard> {
-    let state_dir = dirs::state_dir()?.join("vapour");
+    let state_dir = dirs::state_dir()
+        .or_else(dirs::config_dir)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?
+        .join("vapour");
     fs::create_dir_all(&state_dir).ok()?;
 
     let file_appender = tracing_appender::rolling::never(state_dir, "vapour.log");

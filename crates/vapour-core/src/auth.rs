@@ -82,7 +82,9 @@ impl AuthState {
 
 pub fn auth_state_path() -> PathBuf {
     dirs::state_dir()
-        .unwrap_or_else(|| PathBuf::from("~/.local/state"))
+        .or_else(dirs::config_dir)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+        .unwrap_or_else(|| PathBuf::from(".config"))
         .join("vapour")
         .join("auth.toml")
 }
