@@ -10,16 +10,9 @@ use crate::io_event::IoEvent;
 pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event: IoEvent) {
     match event {
         IoEvent::LoadLibrary => {
-            // When the protocol connection is active, delegate to it and skip the Web API.
-            // The result arrives asynchronously via FriendsEvent::OwnedGames.
-            let cmd_tx = app.lock().unwrap().friend_cmd_tx.clone();
-            if let Some(tx) = cmd_tx {
-                app.lock().unwrap().loading.library = true;
-                let _ = tx.send(RunCommand::GetOwnedGames);
-                return;
-            }
-
-            // Fall back to Web API (requires api_key).
+            // CM Player.GetOwnedGames#1 (ServiceMethodCallFromClient) does not respond —
+            // Steam ignores the request entirely. Use the Web API path until the CM library
+            // mechanism is resolved (likely via ClientLicenseList / PICS).
             app.lock().unwrap().loading.library = true;
             match client.get_owned_games().await {
                 Ok(games) => {
