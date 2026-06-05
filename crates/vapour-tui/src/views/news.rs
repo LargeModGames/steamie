@@ -72,7 +72,10 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
             if let Some(contents) = &n.contents {
                 // Strip basic HTML tags for preview
                 let plain = strip_html(contents);
-                lines.push(Line::from(Span::styled(plain, Style::default().fg(theme.fg))));
+                lines.push(Line::from(Span::styled(
+                    plain,
+                    Style::default().fg(theme.fg),
+                )));
             }
             lines
         })

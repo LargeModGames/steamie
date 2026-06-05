@@ -1,10 +1,10 @@
 mod auth;
-mod library;
-mod game_detail;
 mod friends;
-mod wishlist;
+mod game_detail;
+mod library;
 mod news;
 mod search;
+mod wishlist;
 
 use crate::app::App;
 use crate::event::Key;

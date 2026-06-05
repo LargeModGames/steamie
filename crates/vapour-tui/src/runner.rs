@@ -10,8 +10,8 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use vapour_core::{AuthMethod, Config, Session};
 
 use crate::app::App;
-use crate::event::{Event, Events};
 use crate::event::Key;
+use crate::event::{Event, Events};
 use crate::handlers;
 use crate::io_event::IoEvent;
 use crate::network;

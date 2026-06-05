@@ -23,7 +23,7 @@ impl Theme {
         Self {
             bg: Color::Reset,
             fg: Color::Rgb(220, 220, 220),
-            highlight: Color::Rgb(31, 111, 187),   // Steam blue
+            highlight: Color::Rgb(31, 111, 187), // Steam blue
             highlight_text: Color::White,
             tab_active: Color::Rgb(31, 111, 187),
             tab_inactive: Color::Rgb(100, 100, 100),

@@ -63,7 +63,10 @@ fn draw_info_panel(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
             };
             lines.push(Line::from(vec![
                 Span::styled("Metacritic ", Style::default().fg(theme.muted)),
-                Span::styled(mc.score.to_string(), Style::default().fg(color).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    mc.score.to_string(),
+                    Style::default().fg(color).add_modifier(Modifier::BOLD),
+                ),
             ]));
         }
         if let Some(genres) = &details.genres {
@@ -78,11 +81,17 @@ fn draw_info_panel(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
 
         if let Some(desc) = &details.short_description {
             for chunk in textwrap_simple(desc, area.width.saturating_sub(4) as usize) {
-                lines.push(Line::from(Span::styled(chunk, Style::default().fg(theme.muted))));
+                lines.push(Line::from(Span::styled(
+                    chunk,
+                    Style::default().fg(theme.muted),
+                )));
             }
         }
     } else {
-        lines.push(Line::from(Span::styled("Loading…", Style::default().fg(theme.muted))));
+        lines.push(Line::from(Span::styled(
+            "Loading…",
+            Style::default().fg(theme.muted),
+        )));
     }
 
     let info = Paragraph::new(lines)
@@ -99,11 +108,19 @@ fn draw_info_panel(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     // --- Achievement progress bar ---
     let total = app.achievements.len();
     let unlocked = app.achievements.iter().filter(|a| a.is_unlocked()).count();
-    let ratio = if total > 0 { unlocked as f64 / total as f64 } else { 0.0 };
+    let ratio = if total > 0 {
+        unlocked as f64 / total as f64
+    } else {
+        0.0
+    };
     let label = format!("{}/{} achievements", unlocked, total);
 
     let gauge = Gauge::default()
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(theme.border)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.border)),
+        )
         .gauge_style(Style::default().fg(theme.highlight))
         .ratio(ratio)
         .label(label);
@@ -137,7 +154,11 @@ fn draw_achievements_panel(f: &mut Frame, app: &App, theme: &Theme, area: Rect) 
                 .border_style(Style::default().fg(theme.border))
                 .title(title),
         )
-        .highlight_style(Style::default().bg(theme.highlight).fg(theme.highlight_text))
+        .highlight_style(
+            Style::default()
+                .bg(theme.highlight)
+                .fg(theme.highlight_text),
+        )
         .highlight_symbol("> ");
 
     let mut state = app.achievements_state;

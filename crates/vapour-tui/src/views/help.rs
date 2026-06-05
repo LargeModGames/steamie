@@ -35,7 +35,9 @@ pub fn draw(f: &mut Frame, theme: &Theme, area: Rect) {
             Line::from(vec![
                 Span::styled(
                     format!("  {:20}", key),
-                    Style::default().fg(theme.highlight).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme.highlight)
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(*desc, Style::default().fg(theme.fg)),
             ])

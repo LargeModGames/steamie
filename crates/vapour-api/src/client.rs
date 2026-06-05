@@ -25,7 +25,11 @@ impl SteamApiClient {
             .user_agent("Vapour/0.1.0")
             .build()
             .expect("failed to build HTTP client");
-        Self { http, api_key, steam_id: Arc::new(RwLock::new(steam_id)) }
+        Self {
+            http,
+            api_key,
+            steam_id: Arc::new(RwLock::new(steam_id)),
+        }
     }
 
     /// Called by the protocol task after login to fill in the user's SteamID.
@@ -36,9 +40,11 @@ impl SteamApiClient {
     }
 
     fn require_api_key(&self) -> Result<&str> {
-        self.api_key
-            .as_deref()
-            .ok_or_else(|| anyhow!("this feature requires an api_key in your config (~/.config/vapour/config.toml)"))
+        self.api_key.as_deref().ok_or_else(|| {
+            anyhow!(
+                "this feature requires an api_key in your config (~/.config/vapour/config.toml)"
+            )
+        })
     }
 
     fn require_steam_id(&self) -> Result<String> {
@@ -70,10 +76,8 @@ impl SteamApiClient {
             .await
             .context("parse GetOwnedGames")?;
 
-        let games: Vec<Game> = serde_json::from_value(
-            resp["response"]["games"].clone(),
-        )
-        .unwrap_or_default();
+        let games: Vec<Game> =
+            serde_json::from_value(resp["response"]["games"].clone()).unwrap_or_default();
 
         let mut games = games;
         games.sort_by(|a, b| b.playtime_forever.cmp(&a.playtime_forever));
@@ -125,10 +129,7 @@ impl SteamApiClient {
             let resp: Value = self
                 .http
                 .get(&url)
-                .query(&[
-                    ("key", api_key),
-                    ("steamids", ids_str.as_str()),
-                ])
+                .query(&[("key", api_key), ("steamids", ids_str.as_str())])
                 .send()
                 .await
                 .context("GET GetPlayerSummaries")?
@@ -137,8 +138,7 @@ impl SteamApiClient {
                 .context("parse GetPlayerSummaries")?;
 
             let players: Vec<PlayerSummary> =
-                serde_json::from_value(resp["response"]["players"].clone())
-                    .unwrap_or_default();
+                serde_json::from_value(resp["response"]["players"].clone()).unwrap_or_default();
             all.extend(players);
         }
 
@@ -170,8 +170,7 @@ impl SteamApiClient {
         }
 
         let achievements: Vec<Achievement> =
-            serde_json::from_value(resp["playerstats"]["achievements"].clone())
-                .unwrap_or_default();
+            serde_json::from_value(resp["playerstats"]["achievements"].clone()).unwrap_or_default();
 
         Ok(achievements)
     }
@@ -198,8 +197,8 @@ impl SteamApiClient {
             return Ok(None);
         }
 
-        let details: AppDetails = serde_json::from_value(entry["data"].clone())
-            .context("deserialize AppDetails")?;
+        let details: AppDetails =
+            serde_json::from_value(entry["data"].clone()).context("deserialize AppDetails")?;
         Ok(Some(details))
     }
 
@@ -232,7 +231,11 @@ impl SteamApiClient {
         if app_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let ids_str = app_ids.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(",");
+        let ids_str = app_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
         let url = format!("{STORE_API_BASE}/api/appdetails");
         let resp: Value = self
             .http
@@ -248,12 +251,11 @@ impl SteamApiClient {
         let mut names = HashMap::new();
         if let Some(obj) = resp.as_object() {
             for (key, entry) in obj {
-                if let Ok(app_id) = key.parse::<u32>() {
-                    if entry["success"].as_bool() == Some(true) {
-                        if let Some(name) = entry["data"]["name"].as_str() {
-                            names.insert(app_id, name.to_owned());
-                        }
-                    }
+                if let Ok(app_id) = key.parse::<u32>()
+                    && entry["success"].as_bool() == Some(true)
+                    && let Some(name) = entry["data"]["name"].as_str()
+                {
+                    names.insert(app_id, name.to_owned());
                 }
             }
         }

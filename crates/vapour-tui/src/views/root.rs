@@ -76,7 +76,11 @@ fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         .block(Block::default().borders(Borders::ALL).title(" vapour "))
         .select(selected)
         .style(Style::default().fg(theme.tab_inactive))
-        .highlight_style(Style::default().fg(theme.tab_active).add_modifier(Modifier::BOLD));
+        .highlight_style(
+            Style::default()
+                .fg(theme.tab_active)
+                .add_modifier(Modifier::BOLD),
+        );
 
     f.render_widget(tabs, area);
 }
@@ -124,7 +128,6 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         Span::raw("  "),
         Span::styled(hints, Style::default().fg(theme.muted)),
     ];
-    let bar = Paragraph::new(Line::from(spans))
-        .style(Style::default().bg(theme.status_bar_bg));
+    let bar = Paragraph::new(Line::from(spans)).style(Style::default().bg(theme.status_bar_bg));
     f.render_widget(bar, area);
 }

@@ -21,23 +21,24 @@ impl Events {
         let (tx, rx) = mpsc::channel();
         let tick_rate = Duration::from_millis(tick_rate_ms);
 
-        thread::spawn(move || loop {
-            if event::poll(tick_rate).unwrap_or(false) {
-                match event::read() {
-                    Ok(CEvent::Key(k)) => {
-                        let _ = tx.send(Event::Key(Key::from(k)));
+        thread::spawn(move || {
+            loop {
+                if event::poll(tick_rate).unwrap_or(false) {
+                    match event::read() {
+                        Ok(CEvent::Key(k)) => {
+                            let _ = tx.send(Event::Key(Key::from(k)));
+                        }
+                        Ok(CEvent::Resize(_, _)) => {
+                            let _ = tx.send(Event::Resize);
+                        }
+                        _ => {}
                     }
-                    Ok(CEvent::Resize(_, _)) => {
-                        let _ = tx.send(Event::Resize);
-                    }
-                    _ => {}
+                } else {
+                    let _ = tx.send(Event::Tick);
                 }
-            } else {
-                let _ = tx.send(Event::Tick);
             }
         });
 
         Self { rx }
     }
-
 }

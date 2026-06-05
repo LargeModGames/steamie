@@ -60,12 +60,12 @@ impl Config {
         let path = config_path();
 
         match std::fs::read_to_string(&path) {
-            Ok(raw) => {
-                toml::from_str(&raw)
-                    .with_context(|| format!("invalid config at {}", path.display()))
-            }
+            Ok(raw) => toml::from_str(&raw)
+                .with_context(|| format!("invalid config at {}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(e).with_context(|| format!("could not read config at {}", path.display())),
+            Err(e) => {
+                Err(e).with_context(|| format!("could not read config at {}", path.display()))
+            }
         }
     }
 
