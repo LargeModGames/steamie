@@ -16,10 +16,7 @@ pub struct Session {
 
 impl Session {
     pub fn new(config: Config) -> Result<Self> {
-        let api_client = SteamApiClient::new(
-            config.api_key.clone(),
-            config.steam_id.clone(),
-        );
+        let api_client = SteamApiClient::new(config.api_key.clone(), config.steam_id.clone());
         let stored_auth = AuthState::load()?;
         let mut protocol_client = SteamClient::new();
 

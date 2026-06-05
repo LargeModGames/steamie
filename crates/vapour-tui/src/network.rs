@@ -10,10 +10,13 @@ use crate::io_event::IoEvent;
 pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event: IoEvent) {
     match event {
         IoEvent::LoadLibrary => {
-            // CM Player.GetOwnedGames#1 (ServiceMethodCallFromClient) does not respond —
-            // Steam ignores the request entirely. Use the Web API path until the CM library
-            // mechanism is resolved (likely via ClientLicenseList / PICS).
             app.lock().unwrap().loading.library = true;
+
+            if let Some(tx) = app.lock().unwrap().friend_cmd_tx.clone() {
+                let _ = tx.send(RunCommand::GetLibrary);
+                return;
+            }
+
             match client.get_owned_games().await {
                 Ok(games) => {
                     let mut a = app.lock().unwrap();
@@ -65,7 +68,12 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
         IoEvent::LoadFriendPage(page) => {
             let chunk: Vec<String> = {
                 let a = app.lock().unwrap();
-                a.friend_ids.iter().skip(page * 100).take(100).cloned().collect()
+                a.friend_ids
+                    .iter()
+                    .skip(page * 100)
+                    .take(100)
+                    .cloned()
+                    .collect()
             };
 
             if chunk.is_empty() {
@@ -80,7 +88,13 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
                         let mut a = app.lock().unwrap();
                         a.friends.extend(summaries);
                         a.friends.sort_by_key(|p| {
-                            if p.is_in_game() { 0u8 } else if p.personastate > 0 { 1 } else { 2 }
+                            if p.is_in_game() {
+                                0u8
+                            } else if p.personastate > 0 {
+                                1
+                            } else {
+                                2
+                            }
                         });
                         a.loading.friends = false;
                         let loaded = a.friends.len();
@@ -113,29 +127,24 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
         IoEvent::LoadNews => {
             app.lock().unwrap().loading.news = true;
 
-            // Ensure we have a game list to pull news for.
             let appids: Vec<u32> = {
                 let a = app.lock().unwrap();
-                a.games.iter().take(20).map(|g| g.appid).collect()
-            };
-            let appids = if appids.is_empty() {
-                match client.get_owned_games().await {
-                    Ok(games) => {
-                        let ids: Vec<u32> = games.iter().take(20).map(|g| g.appid).collect();
-                        let mut a = app.lock().unwrap();
-                        let len = games.len();
-                        a.games = games;
-                        a.filtered_games = (0..len).collect();
-                        ids
-                    }
-                    Err(e) => {
-                        set_error(&app, e.to_string());
-                        return;
-                    }
+                let mut appids: Vec<u32> = a.games.iter().take(20).map(|g| g.appid).collect();
+                if appids.is_empty() {
+                    appids = a.recently_played_appids.iter().take(20).copied().collect();
                 }
-            } else {
+                if appids.is_empty() {
+                    appids = a.wishlist.iter().take(20).map(|item| item.appid).collect();
+                }
                 appids
             };
+
+            if appids.is_empty() {
+                let mut a = app.lock().unwrap();
+                a.news_feed.clear();
+                a.loading.news = false;
+                return;
+            }
 
             // Fetch each game's news in its own spawned task (no lifetime issues).
             let mut set = JoinSet::new();
@@ -184,7 +193,9 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
             match client.get_achievements(appid).await {
                 Ok(mut achs) => {
                     achs.sort_by(|a, b| {
-                        b.achieved.cmp(&a.achieved).then(a.display_name().cmp(b.display_name()))
+                        b.achieved
+                            .cmp(&a.achieved)
+                            .then(a.display_name().cmp(b.display_name()))
                     });
                     let mut a = app.lock().unwrap();
                     a.achievements = achs;
@@ -203,11 +214,10 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
         }
 
         IoEvent::LookupGameNames(app_ids) => {
-            match client.get_app_names(&app_ids).await {
-                Ok(names) => {
-                    app.lock().unwrap().game_name_cache.extend(names);
-                }
-                Err(_) => {}
+            if let Ok(names) = client.get_app_names(&app_ids).await {
+                let mut a = app.lock().unwrap();
+                a.game_name_cache.extend(names);
+                a.update_search();
             }
         }
     }

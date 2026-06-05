@@ -17,31 +17,25 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     let modal = centered_rect(area, 72, 80);
     f.render_widget(Clear, modal);
 
-    let block = Block::default().borders(Borders::ALL).title(" Steam Login ");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Steam Login ");
     let inner = block.inner(modal);
     f.render_widget(block, modal);
 
     match &app.protocol_status {
-        ProtocolStatus::Connecting => draw_message(
-            f,
-            inner,
-            theme,
-            "Connecting to Steam…",
-            Some("Esc cancel"),
-        ),
+        ProtocolStatus::Connecting => {
+            draw_message(f, inner, theme, "Connecting to Steam…", Some("Esc cancel"))
+        }
         ProtocolStatus::AwaitingQrScan { qr_url } => draw_qr(f, inner, theme, qr_url),
-        ProtocolStatus::AwaitingGuardCode { kind } => draw_guard(f, inner, theme, kind, &app.protocol_input),
+        ProtocolStatus::AwaitingGuardCode { kind } => {
+            draw_guard(f, inner, theme, kind, &app.protocol_input)
+        }
         _ => {}
     }
 }
 
-fn draw_message(
-    f: &mut Frame,
-    area: Rect,
-    theme: &Theme,
-    message: &str,
-    footer: Option<&str>,
-) {
+fn draw_message(f: &mut Frame, area: Rect, theme: &Theme, message: &str, footer: Option<&str>) {
     let mut text = Text::from(vec![Line::from(message)]);
     if let Some(footer) = footer {
         text.extend(Text::from(vec![Line::from(""), Line::from(footer)]));
@@ -69,13 +63,7 @@ fn draw_qr(f: &mut Frame, area: Rect, theme: &Theme, qr_url: &str) {
     f.render_widget(paragraph, area);
 }
 
-fn draw_guard(
-    f: &mut Frame,
-    area: Rect,
-    theme: &Theme,
-    kind: &ProtocolGuardKind,
-    input: &str,
-) {
+fn draw_guard(f: &mut Frame, area: Rect, theme: &Theme, kind: &ProtocolGuardKind, input: &str) {
     let prompt = match kind {
         ProtocolGuardKind::EmailCode => "Enter the Steam Guard email code",
         ProtocolGuardKind::DeviceCode => "Enter the Steam Guard code from your authenticator",

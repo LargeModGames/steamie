@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
+use crate::io_event::IoEvent;
 use tokio::{
     sync::mpsc,
     time::{Duration, sleep},
 };
-use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
-use crate::io_event::IoEvent;
 use vapour_api::{Achievement, Game};
+use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use vapour_protocol::{
     AuthEvent, AuthMethod, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn, Persona,
     RunCommand,
@@ -114,7 +114,9 @@ async fn run_protocol_task(
 
     // Propagate the SteamID to the Web API client so key-backed features
     // that still use the Web API (wishlist, news, store) work without steam_id in config.
-    session.api_client.set_steam_id(logged_on.steamid.to_string());
+    session
+        .api_client
+        .set_steam_id(logged_on.steamid.to_string());
 
     set_status(
         app,
@@ -148,24 +150,42 @@ async fn run_protocol_task(
                         friends.iter().map(|f| f.steamid).collect();
                     app.protocol_friends.retain(|p| ids.contains(&p.steamid));
                 }
+                FriendsEvent::RecentlyPlayedGames(protocol_games) => {
+                    app.recently_played_appids =
+                        protocol_games.into_iter().map(|game| game.appid).collect();
+                }
                 FriendsEvent::OwnedGames(protocol_games) => {
                     let mut games: Vec<Game> = protocol_games
                         .into_iter()
                         .map(|g| Game {
                             appid: g.appid,
-                            name: if g.name.is_empty() { None } else { Some(g.name) },
+                            name: if g.name.is_empty() {
+                                None
+                            } else {
+                                Some(g.name)
+                            },
                             playtime_forever: g.playtime_forever.max(0) as u32,
                             img_icon_url: g.img_icon_url,
                             rtime_last_played: Some(g.rtime_last_played as u64),
                         })
                         .collect();
-                    games.sort_by(|a, b| b.playtime_forever.cmp(&a.playtime_forever));
+                    sort_library_games(&mut games);
+                    app.recently_played_appids = games
+                        .iter()
+                        .filter(|game| game.rtime_last_played.unwrap_or_default() > 0)
+                        .map(|game| game.appid)
+                        .collect();
                     let len = games.len();
                     app.games = games;
                     app.filtered_games = (0..len).collect();
                     app.loading.library = false;
+                    queue_library_game_name_lookups(&mut app);
+                    app.update_search();
                 }
-                FriendsEvent::PlayerAchievements { achievements: protocol_achs, .. } => {
+                FriendsEvent::PlayerAchievements {
+                    achievements: protocol_achs,
+                    ..
+                } => {
                     let mut achs: Vec<Achievement> = protocol_achs
                         .into_iter()
                         .map(|a| Achievement {
@@ -177,7 +197,9 @@ async fn run_protocol_task(
                         })
                         .collect();
                     achs.sort_by(|a, b| {
-                        b.achieved.cmp(&a.achieved).then(a.display_name().cmp(b.display_name()))
+                        b.achieved
+                            .cmp(&a.achieved)
+                            .then(a.display_name().cmp(b.display_name()))
                     });
                     app.achievements = achs;
                 }
@@ -212,6 +234,22 @@ fn merge_personas(existing: &mut Vec<Persona>, updates: Vec<Persona>) {
             existing.push(update);
         }
     }
+}
+
+fn sort_library_games(games: &mut [Game]) {
+    games.sort_by(|a, b| {
+        b.playtime_forever
+            .cmp(&a.playtime_forever)
+            .then_with(|| a.name.is_none().cmp(&b.name.is_none()))
+            .then_with(|| {
+                a.name
+                    .as_deref()
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .cmp(&b.name.as_deref().unwrap_or_default().to_lowercase())
+            })
+            .then_with(|| a.appid.cmp(&b.appid))
+    });
 }
 
 async fn drive_auth(
@@ -297,11 +335,15 @@ fn map_guard_kind(kind: GuardKind) -> ProtocolGuardKind {
     }
 }
 
-pub fn build_bootstrap(session: &Session, credentials: Option<(String, String)>) -> ProtocolBootstrap {
+pub fn build_bootstrap(
+    session: &Session,
+    credentials: Option<(String, String)>,
+) -> ProtocolBootstrap {
     let fallback = match session.preferred_auth_method() {
         ConfigAuthMethod::Qr => Some(AuthMethod::Qr),
-        ConfigAuthMethod::Credentials => credentials
-            .map(|(account, password)| AuthMethod::Credentials { account, password }),
+        ConfigAuthMethod::Credentials => {
+            credentials.map(|(account, password)| AuthMethod::Credentials { account, password })
+        }
     };
 
     if let Some(stored_auth) = session.stored_auth().cloned() {
@@ -322,8 +364,8 @@ fn should_retry_auth(method: &AuthMethod, error: &ProtocolError) -> bool {
 }
 
 fn queue_game_name_lookups(app: &mut App) {
-    use std::collections::HashSet;
     use crate::io_event::IoEvent;
+    use std::collections::HashSet;
 
     let unknown: Vec<u32> = app
         .protocol_friends
@@ -339,7 +381,26 @@ fn queue_game_name_lookups(app: &mut App) {
     if !unknown.is_empty() {
         // Mark IDs as pending so concurrent ticks don't queue duplicate requests.
         for id in &unknown {
-            app.game_name_cache.entry(*id).or_insert_with(String::new);
+            app.game_name_cache.entry(*id).or_default();
+        }
+        let _ = app.io_tx.send(IoEvent::LookupGameNames(unknown));
+    }
+}
+
+fn queue_library_game_name_lookups(app: &mut App) {
+    use crate::io_event::IoEvent;
+
+    let unknown: Vec<u32> = app
+        .games
+        .iter()
+        .filter(|game| game.name.as_deref().is_none_or(str::is_empty))
+        .map(|game| game.appid)
+        .filter(|appid| !app.game_name_cache.contains_key(appid))
+        .collect();
+
+    if !unknown.is_empty() {
+        for appid in &unknown {
+            app.game_name_cache.entry(*appid).or_default();
         }
         let _ = app.io_tx.send(IoEvent::LookupGameNames(unknown));
     }

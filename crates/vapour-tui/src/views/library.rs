@@ -41,11 +41,8 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
                 format!("{:.1} hrs", hours)
             };
             let line = Line::from(vec![
-                Span::styled(g.display_name(), Style::default().fg(theme.fg)),
-                Span::styled(
-                    format!("  {}", playtime),
-                    Style::default().fg(theme.muted),
-                ),
+                Span::styled(app.game_display_name(g), Style::default().fg(theme.fg)),
+                Span::styled(format!("  {}", playtime), Style::default().fg(theme.muted)),
             ]);
             ListItem::new(line)
         })

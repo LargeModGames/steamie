@@ -48,7 +48,14 @@ fn draw_protocol_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         .collect();
 
     let title = format!(" Friends ({} online / {}) ", online, friends.len());
-    render_list(f, items, &title, theme, area, &mut app.friends_state.clone());
+    render_list(
+        f,
+        items,
+        &title,
+        theme,
+        area,
+        &mut app.friends_state.clone(),
+    );
 }
 
 fn draw_web_api_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
@@ -92,15 +99,30 @@ fn draw_web_api_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     let total = app.friend_ids.len();
     let loaded = app.friends.len();
     let title = if loaded < total && total > 0 {
-        format!(" Friends ({} online / {}/{} loaded) ", online, loaded, total)
+        format!(
+            " Friends ({} online / {}/{} loaded) ",
+            online, loaded, total
+        )
     } else {
         format!(" Friends ({} online / {}) ", online, loaded)
     };
 
-    render_list(f, items, &title, theme, area, &mut app.friends_state.clone());
+    render_list(
+        f,
+        items,
+        &title,
+        theme,
+        area,
+        &mut app.friends_state.clone(),
+    );
 }
 
-fn persona_line<'a>(p: &'a Persona, theme: &Theme, games: &[Game], cache: &HashMap<u32, String>) -> Line<'a> {
+fn persona_line<'a>(
+    p: &'a Persona,
+    theme: &Theme,
+    games: &[Game],
+    cache: &HashMap<u32, String>,
+) -> Line<'a> {
     let (dot, dot_color) = match &p.state {
         PersonaState::Offline | PersonaState::Invisible => ("○", theme.offline),
         _ if p.game_app_id.is_some() => ("●", theme.ingame),
@@ -127,7 +149,10 @@ fn persona_line<'a>(p: &'a Persona, theme: &Theme, games: &[Game], cache: &HashM
         // Steam doesn't send game_name for catalogue games; look it up from
         // the user's library, then the async-fetched cache (for games they
         // don't own), then the persona field (non-Steam games).
-        let cache_name = cache.get(&app_id).filter(|s| !s.is_empty()).map(|s| s.as_str());
+        let cache_name = cache
+            .get(&app_id)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.as_str());
         let name = games
             .iter()
             .find(|g| g.appid == app_id)

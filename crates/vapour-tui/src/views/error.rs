@@ -21,7 +21,9 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     let lines = vec![
         Line::from(Span::styled(
             "Error",
-            Style::default().fg(theme.error).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.error)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::default(),
         Line::from(Span::styled(msg, Style::default().fg(theme.fg))),

@@ -75,4 +75,4 @@ shared App state (app.rs)
 
 ### Current state (v0.2)
 
-Protocol auth is live (QR + credentials), friends and library load via CM, and achievements use the CM UserStats service plus a binary KV schema parser (pending live validation). Web API usage is limited to keyless endpoints (wishlist, news, store details).
+Protocol auth is live (QR + credentials), friends and library load via CM, and news is sourced from keyless library/recently-played/wishlist appids. Achievements use the CM UserStats service plus a binary KV schema parser (pending live validation). Web API owned-games remains only a disconnected fallback.
