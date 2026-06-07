@@ -81,6 +81,16 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
                     continue;
                 }
 
+                // In text-input modes (search, chat composer) every printable key must reach the
+                // handler — only Ctrl+C still quits — so typing 'q' types a 'q' instead of exiting.
+                if app_lock.is_text_input_active() {
+                    if key == Key::Ctrl('c') {
+                        break;
+                    }
+                    handlers::handle_key(&mut app_lock, key);
+                    continue;
+                }
+
                 match key {
                     Key::Char('q') | Key::Ctrl('c') => break,
                     other => handlers::handle_key(&mut app_lock, other),

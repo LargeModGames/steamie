@@ -8,8 +8,8 @@ use tokio::{
 use vapour_api::{Achievement, Game};
 use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use vapour_protocol::{
-    AuthEvent, AuthMethod, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn, Persona,
-    RunCommand,
+    AuthEvent, AuthMethod, ChatMessage, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn,
+    Persona, RunCommand,
 };
 
 use crate::app::App;
@@ -128,12 +128,24 @@ async fn run_protocol_task(
     let (run_cmd_tx, run_cmd_rx) = mpsc::unbounded_channel::<RunCommand>();
     let (friends_evt_tx, mut friends_evt_rx) = mpsc::unbounded_channel::<FriendsEvent>();
 
-    {
+    // Serialized chat-history persistence: drains snapshots one at a time on a blocking thread so
+    // disk writes never block the render-critical App mutex and can't race to overwrite the file
+    // out of order.
+    let (persist_tx, mut persist_rx) = mpsc::unbounded_channel::<(u64, Vec<ChatMessage>)>();
+    let chat_history = {
         let mut app = app.lock().unwrap();
         app.friend_cmd_tx = Some(run_cmd_tx);
+        app.chat_persist_tx = Some(persist_tx);
         let _ = app.io_tx.send(IoEvent::LoadLibrary);
         let _ = app.io_tx.send(IoEvent::LoadWishlist);
-    }
+        app.chat_history.clone()
+    };
+    tokio::spawn(async move {
+        while let Some((steamid, messages)) = persist_rx.recv().await {
+            let history = chat_history.clone();
+            let _ = tokio::task::spawn_blocking(move || history.save(steamid, &messages)).await;
+        }
+    });
 
     // Drain events from the protocol run loop into App on a background task.
     let app_friends = Arc::clone(app);
@@ -203,6 +215,19 @@ async fn run_protocol_task(
                             .then(a.display_name().cmp(b.display_name()))
                     });
                     app.achievements = achs;
+                }
+                FriendsEvent::IncomingMessage(message) => record_message(&mut app, message, true),
+                FriendsEvent::MessageSent(message) => record_message(&mut app, message, false),
+                FriendsEvent::TypingNotification { steamid } => {
+                    // Only flag typing for a conversation that already exists; never materialize an
+                    // empty phantom conversation from a bare typing push.
+                    if let Some(convo) = app.conversations.get_mut(&steamid) {
+                        convo.peer_typing_until =
+                            Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+                    }
+                }
+                FriendsEvent::RecentMessages { steamid, messages } => {
+                    record_recent_messages(&mut app, steamid, messages);
                 }
             }
         }
@@ -413,5 +438,80 @@ fn is_closed_error(error: &ProtocolError) -> bool {
         ProtocolError::Transport(message) => message.contains("closed"),
         ProtocolError::WebSocket(error) => error.to_string().contains("closed"),
         _ => false,
+    }
+}
+
+/// Append a chat message to its conversation, dedupe + persist, and — for a true incoming message
+/// not currently on screen — bump the unread count and raise a notification. `incoming` is false
+/// for `MessageSent` (the confirmed echo of one of our own sends).
+fn record_message(app: &mut App, message: ChatMessage, incoming: bool) {
+    let steamid = message.steamid;
+    let from_local = message.from_local;
+    let viewing = app.is_viewing_conversation(steamid);
+
+    let convo = app.ensure_conversation(steamid);
+    let added = vapour_core::chat_history::merge(&mut convo.messages, std::iter::once(message));
+    if !added {
+        return;
+    }
+    // A message from the partner means they've stopped typing.
+    if incoming && !from_local {
+        convo.peer_typing_until = None;
+    }
+    let should_alert = incoming && !from_local && !viewing;
+    if should_alert {
+        convo.unread += 1;
+    }
+    let snapshot = convo.messages.clone();
+
+    persist(app, steamid, snapshot);
+    if viewing {
+        app.chat_scroll_back = 0;
+    }
+    if should_alert {
+        notify_new_message(app, steamid);
+    }
+}
+
+/// Merge a server history backfill into a conversation and persist it. Never bumps unread or
+/// notifies — backfilled history is not "new".
+fn record_recent_messages(app: &mut App, steamid: u64, messages: Vec<ChatMessage>) {
+    let viewing = app.is_viewing_conversation(steamid);
+    let convo = app.ensure_conversation(steamid);
+    let added = vapour_core::chat_history::merge(&mut convo.messages, messages);
+    let snapshot = added.then(|| convo.messages.clone());
+    if let Some(snapshot) = snapshot {
+        persist(app, steamid, snapshot);
+    }
+    if viewing {
+        app.chat_scroll_back = 0;
+    }
+}
+
+/// Queue a conversation snapshot for off-thread persistence (no-op until the protocol task is up).
+fn persist(app: &App, steamid: u64, snapshot: Vec<ChatMessage>) {
+    if let Some(tx) = &app.chat_persist_tx {
+        let _ = tx.send((steamid, snapshot));
+    }
+}
+
+fn notify_new_message(app: &App, steamid: u64) {
+    let cfg = &app.config.chat;
+    if cfg.notifications_enabled {
+        // Terminal bell. The render loop and this event task are mutually exclusive on the App
+        // mutex, so this write never interleaves with a terminal draw.
+        use std::io::Write;
+        print!("\x07");
+        let _ = std::io::stdout().flush();
+    }
+    if cfg.desktop_notifications {
+        let name = app.friend_name(steamid);
+        // Spawn so a slow D-Bus round-trip never stalls the event loop or the render.
+        std::thread::spawn(move || {
+            let _ = notify_rust::Notification::new()
+                .summary(&format!("Vapour — {name}"))
+                .body("New message")
+                .show();
+        });
     }
 }

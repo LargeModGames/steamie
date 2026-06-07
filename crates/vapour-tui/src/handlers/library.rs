@@ -60,6 +60,7 @@ pub fn handle(app: &mut App, key: Key) {
         Key::Char('2') => switch_tab(app, 1),
         Key::Char('3') => switch_tab(app, 2),
         Key::Char('4') => switch_tab(app, 3),
+        Key::Char('5') => switch_tab(app, 4),
         Key::Char('?') => {
             app.pending_g = false;
             let route = app.navigation_stack.last_mut().expect("never empty");
@@ -79,6 +80,7 @@ pub fn switch_tab(app: &mut App, tab: u8) {
         1 => Route::friends(),
         2 => Route::wishlist(),
         3 => Route::news(),
+        4 => Route::chat(),
         _ => return,
     };
     let event = route.load_event();

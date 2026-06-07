@@ -12,6 +12,8 @@ pub struct Config {
     pub auth: AuthConfig,
     #[serde(default)]
     pub ui: UiConfig,
+    #[serde(default)]
+    pub chat: ChatConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
@@ -55,6 +57,38 @@ fn default_theme() -> String {
     "dark".to_owned()
 }
 
+/// Chat behaviour: notifications and local history retention.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct ChatConfig {
+    /// Ring the terminal bell on an incoming message.
+    #[serde(default = "default_true")]
+    pub notifications_enabled: bool,
+    /// Also raise a desktop notification (via `notify-rust`). Off by default.
+    #[serde(default)]
+    pub desktop_notifications: bool,
+    /// Days of locally-cached history to keep. `0` means keep everything.
+    #[serde(default = "default_history_retention_days")]
+    pub history_retention_days: u32,
+}
+
+impl Default for ChatConfig {
+    fn default() -> Self {
+        Self {
+            notifications_enabled: true,
+            desktop_notifications: false,
+            history_retention_days: default_history_retention_days(),
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_history_retention_days() -> u32 {
+    30
+}
+
 impl Config {
     pub fn load() -> Result<Self> {
         let path = config_path();
@@ -85,8 +119,34 @@ pub fn config_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{AuthMethod, Config};
+    use super::{AuthMethod, ChatConfig, Config};
     use anyhow::Result;
+
+    #[test]
+    fn config_defaults_chat_to_bell_on_30_day_retention() -> Result<()> {
+        let config: Config = toml::from_str("")?;
+        assert_eq!(config.chat, ChatConfig::default());
+        assert!(config.chat.notifications_enabled);
+        assert!(!config.chat.desktop_notifications);
+        assert_eq!(config.chat.history_retention_days, 30);
+        Ok(())
+    }
+
+    #[test]
+    fn config_parses_chat_section() -> Result<()> {
+        let config: Config = toml::from_str(
+            r#"
+[chat]
+notifications_enabled = false
+desktop_notifications = true
+history_retention_days = 7
+"#,
+        )?;
+        assert!(!config.chat.notifications_enabled);
+        assert!(config.chat.desktop_notifications);
+        assert_eq!(config.chat.history_retention_days, 7);
+        Ok(())
+    }
 
     #[test]
     fn config_defaults_auth_to_qr() -> Result<()> {

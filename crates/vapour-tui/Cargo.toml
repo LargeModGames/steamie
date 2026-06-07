@@ -21,6 +21,7 @@ clap = { version = "4", features = ["derive"] }
 futures = "0.3"
 qrcode = "0.14"
 rpassword = "7"
+notify-rust = "4"
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
