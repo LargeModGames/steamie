@@ -13,4 +13,6 @@ pub enum IoEvent {
     RefreshAll,
     /// Look up game names for app IDs not in the user's library.
     LookupGameNames(Vec<u32>),
+    /// Launch a game through the Steam client (v0.4.0 "Launch Day").
+    LaunchGame(u32),
 }

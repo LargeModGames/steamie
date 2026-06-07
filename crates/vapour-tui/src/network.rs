@@ -221,6 +221,40 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
                 a.update_search();
             }
         }
+
+        IoEvent::LaunchGame(appid) => {
+            // Build launch options from config and resolve a display name for the status line.
+            let (opts, name) = {
+                let a = app.lock().unwrap();
+                let opts = a.config.launch.options_for(appid);
+                let name = a
+                    .games
+                    .iter()
+                    .find(|g| g.appid == appid)
+                    .map(|g| a.game_display_name(g).to_owned())
+                    .unwrap_or_else(|| format!("appid {appid}"));
+                (opts, name)
+            };
+
+            // Launching spawns a process (and shells out to reg.exe on Windows); keep it off the
+            // async worker pool.
+            let result = tokio::task::spawn_blocking(move || vapour_core::launch(appid, &opts)).await;
+
+            let mut a = app.lock().unwrap();
+            match result {
+                Ok(Ok(outcome)) => {
+                    tracing::info!(target: "launch", appid, "{}", outcome.command_line);
+                    let msg = if outcome.dry_run {
+                        format!("DRY-RUN: {}", outcome.command_line)
+                    } else {
+                        format!("▶ Launched {name}")
+                    };
+                    a.set_launch_status(msg);
+                }
+                Ok(Err(e)) => a.set_error(format!("Launch failed: {e}")),
+                Err(e) => a.set_error(format!("Launch task panicked: {e}")),
+            }
+        }
     }
 }
 

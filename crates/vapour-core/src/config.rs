@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
@@ -14,6 +15,8 @@ pub struct Config {
     pub ui: UiConfig,
     #[serde(default)]
     pub chat: ChatConfig,
+    #[serde(default)]
+    pub launch: LaunchConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
@@ -89,6 +92,50 @@ fn default_history_retention_days() -> u32 {
     30
 }
 
+/// Game-launch behaviour (v0.4.0 "Launch Day"). Every launch is routed through the Steam client.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
+pub struct LaunchConfig {
+    /// Explicit Steam executable path; empty/omitted means auto-detect.
+    #[serde(default)]
+    pub steam_path: String,
+    /// Log the launch command instead of spawning it (for testing).
+    #[serde(default)]
+    pub dry_run: bool,
+    /// If Vapour started Steam, shut it down once the game exits (best-effort).
+    #[serde(default)]
+    pub kill_steam_on_exit: bool,
+    /// Arguments appended to every launch (whitespace-separated).
+    #[serde(default)]
+    pub extra_args: String,
+    /// Per-game launch arguments, keyed by appid as a string (e.g. `"730" = "-novid"`).
+    #[serde(default)]
+    pub game_args: HashMap<String, String>,
+}
+
+impl LaunchConfig {
+    /// Build [`LaunchOptions`](crate::launcher::LaunchOptions) for `appid`, merging the global
+    /// `extra_args` with this game's `game_args` entry.
+    pub fn options_for(&self, appid: u32) -> crate::launcher::LaunchOptions {
+        let mut args: Vec<String> = self
+            .extra_args
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect();
+        if let Some(per_game) = self.game_args.get(&appid.to_string()) {
+            args.extend(per_game.split_whitespace().map(str::to_owned));
+        }
+        let steam_path = Some(self.steam_path.trim())
+            .filter(|p| !p.is_empty())
+            .map(PathBuf::from);
+        crate::launcher::LaunchOptions {
+            steam_path,
+            dry_run: self.dry_run,
+            kill_steam_on_exit: self.kill_steam_on_exit,
+            args,
+        }
+    }
+}
+
 impl Config {
     pub fn load() -> Result<Self> {
         let path = config_path();
@@ -119,7 +166,7 @@ pub fn config_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{AuthMethod, ChatConfig, Config};
+    use super::{AuthMethod, ChatConfig, Config, LaunchConfig};
     use anyhow::Result;
 
     #[test]
@@ -184,5 +231,73 @@ account_name = "alice"
         assert_eq!(config.auth.method, AuthMethod::Credentials);
         assert_eq!(config.auth.account_name.as_deref(), Some("alice"));
         Ok(())
+    }
+
+    #[test]
+    fn config_defaults_launch_to_auto_detect_no_dry_run() -> Result<()> {
+        let config: Config = toml::from_str("")?;
+        assert_eq!(config.launch, LaunchConfig::default());
+        assert!(config.launch.steam_path.is_empty());
+        assert!(!config.launch.dry_run);
+        assert!(!config.launch.kill_steam_on_exit);
+        assert!(config.launch.game_args.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn config_parses_launch_section() -> Result<()> {
+        let config: Config = toml::from_str(
+            r#"
+[launch]
+steam_path = "C:/Steam/steam.exe"
+dry_run = true
+kill_steam_on_exit = true
+extra_args = "-silent"
+
+[launch.game_args]
+"730" = "-novid -high"
+"#,
+        )?;
+        assert_eq!(config.launch.steam_path, "C:/Steam/steam.exe");
+        assert!(config.launch.dry_run);
+        assert!(config.launch.kill_steam_on_exit);
+        assert_eq!(config.launch.extra_args, "-silent");
+        assert_eq!(
+            config.launch.game_args.get("730").map(String::as_str),
+            Some("-novid -high")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn launch_options_merge_global_and_per_game_args() {
+        let mut launch = LaunchConfig {
+            extra_args: "-silent".to_owned(),
+            dry_run: true,
+            ..Default::default()
+        };
+        launch
+            .game_args
+            .insert("730".to_owned(), "-novid -high".to_owned());
+
+        let opts = launch.options_for(730);
+        assert_eq!(opts.args, vec!["-silent", "-novid", "-high"]);
+        assert!(opts.dry_run);
+        assert!(opts.steam_path.is_none());
+
+        // A game with no per-game entry gets only the global args.
+        assert_eq!(launch.options_for(570).args, vec!["-silent"]);
+    }
+
+    #[test]
+    fn launch_options_use_steam_path_override_when_set() {
+        let launch = LaunchConfig {
+            steam_path: "  /opt/steam/steam  ".to_owned(),
+            ..Default::default()
+        };
+        assert_eq!(
+            launch.options_for(1).steam_path,
+            Some(std::path::PathBuf::from("/opt/steam/steam"))
+        );
     }
 }
