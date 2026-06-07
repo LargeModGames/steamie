@@ -43,10 +43,15 @@ pub fn handle(app: &mut App, key: Key) {
             app.pending_g = false;
             cycle_persona_state(app);
         }
+        Key::Enter if protocol_active => {
+            app.pending_g = false;
+            open_chat_with_selected_friend(app);
+        }
         Key::Char('1') => switch_tab(app, 0),
         Key::Char('2') => switch_tab(app, 1),
         Key::Char('3') => switch_tab(app, 2),
         Key::Char('4') => switch_tab(app, 3),
+        Key::Char('5') => switch_tab(app, 4),
         Key::Char('?') => {
             app.pending_g = false;
             let route = app.navigation_stack.last_mut().expect("never empty");
@@ -64,6 +69,18 @@ fn friends_len(app: &App, protocol_active: bool) -> usize {
     } else {
         app.friends.len()
     }
+}
+
+/// Open a chat with the currently-selected protocol friend. Uses the same display order as the
+/// friends view so the selection index maps to the right SteamID.
+fn open_chat_with_selected_friend(app: &mut App) {
+    let Some(sel) = app.friends_state.selected() else {
+        return;
+    };
+    let Some(steamid) = app.sorted_protocol_friends().get(sel).map(|p| p.steamid) else {
+        return;
+    };
+    app.open_conversation(steamid);
 }
 
 /// Cycle: Online → Away → Invisible → Online.

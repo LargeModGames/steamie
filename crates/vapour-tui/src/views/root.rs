@@ -12,7 +12,7 @@ use crate::protocol::{ProtocolGuardKind, ProtocolStatus};
 use crate::routes::RouteId;
 use crate::theme::Theme;
 
-use super::{friends, game_detail, library, news, wishlist};
+use super::{chat, friends, game_detail, library, news, wishlist};
 
 pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
     let area = f.area();
@@ -39,6 +39,7 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
         RouteId::Friends => friends::draw(f, app, theme, chunks[1]),
         RouteId::Wishlist => wishlist::draw(f, app, theme, chunks[1]),
         RouteId::News => news::draw(f, app, theme, chunks[1]),
+        RouteId::Chat => chat::draw(f, app, theme, chunks[1]),
     }
 
     draw_status_bar(f, app, theme, chunks[2]);
@@ -60,16 +61,29 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
 }
 
 fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
-    let tab_titles: Vec<Line> = ["1 Library", "2 Friends", "3 Wishlist", "4 News"]
-        .iter()
-        .map(|t| Line::from(*t))
-        .collect();
+    let unread = app.total_unread();
+    let chat_title = if unread > 0 {
+        format!("5 Chat ({unread})")
+    } else {
+        "5 Chat".to_owned()
+    };
+    let tab_titles: Vec<Line> = [
+        "1 Library".to_owned(),
+        "2 Friends".to_owned(),
+        "3 Wishlist".to_owned(),
+        "4 News".to_owned(),
+        chat_title,
+    ]
+    .into_iter()
+    .map(Line::from)
+    .collect();
 
     let selected = match app.current_route().id {
         RouteId::Library | RouteId::GameDetail => 0,
         RouteId::Friends => 1,
         RouteId::Wishlist => 2,
         RouteId::News => 3,
+        RouteId::Chat => 4,
     };
 
     let tabs = Tabs::new(tab_titles)
@@ -115,10 +129,16 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         }
     } else if app.is_searching {
         "  Enter confirm  Esc cancel  (type to filter)"
+    } else if matches!(app.current_route().id, RouteId::Chat) {
+        if matches!(app.active_block(), crate::routes::ActiveBlock::ChatComposer) {
+            "  Enter send  Esc back  ↑↓ history"
+        } else {
+            "  Enter open  j/k move  1-5 tabs  q quit"
+        }
     } else if matches!(app.current_route().id, RouteId::Friends)
         && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
     {
-        "  s status  ? help  r reload  q quit"
+        "  Enter chat  s status  ? help  r reload  q quit"
     } else if matches!(app.current_route().id, RouteId::Library) {
         "  t type  ? help  / search  r reload  q quit"
     } else {
