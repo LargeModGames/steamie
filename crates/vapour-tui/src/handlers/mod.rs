@@ -4,6 +4,7 @@ mod friends;
 mod game_detail;
 mod library;
 mod news;
+mod quick_launch;
 mod search;
 mod wishlist;
 
@@ -42,6 +43,7 @@ pub fn handle_key(app: &mut App, key: Key) {
         ActiveBlock::Wishlist => wishlist::handle(app, key),
         ActiveBlock::News => news::handle(app, key),
         ActiveBlock::Chat | ActiveBlock::ChatComposer => chat::handle(app, key),
+        ActiveBlock::QuickLaunch => quick_launch::handle(app, key),
         ActiveBlock::Help | ActiveBlock::Error => {}
     }
 }
