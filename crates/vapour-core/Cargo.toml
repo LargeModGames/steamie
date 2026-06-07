@@ -1,6 +1,6 @@
 [package]
 name = "vapour-core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Config, session, and cache for Vapour"
 license = "GPL-3.0-only"

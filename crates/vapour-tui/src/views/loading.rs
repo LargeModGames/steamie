@@ -28,5 +28,10 @@ pub fn draw(f: &mut Frame, theme: &Theme, area: Rect) {
 fn centered_fixed(width: u16, height: u16, r: Rect) -> Rect {
     let x = r.x + r.width.saturating_sub(width) / 2;
     let y = r.y + r.height.saturating_sub(height) / 2;
-    Rect { x, y, width: width.min(r.width), height: height.min(r.height) }
+    Rect {
+        x,
+        y,
+        width: width.min(r.width),
+        height: height.min(r.height),
+    }
 }

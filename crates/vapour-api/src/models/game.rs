@@ -7,6 +7,10 @@ pub struct Game {
     pub playtime_forever: u32,
     pub img_icon_url: Option<String>,
     pub rtime_last_played: Option<u64>,
+    /// Steam appinfo type ("game", "application", "tool", …) when known. Populated by the protocol
+    /// library path; absent (`None`) on the Web API fallback, which does not report it.
+    #[serde(default)]
+    pub app_type: Option<String>,
 }
 
 impl Game {

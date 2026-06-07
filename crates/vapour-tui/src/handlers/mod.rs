@@ -1,9 +1,10 @@
-mod library;
-mod game_detail;
+mod auth;
 mod friends;
-mod wishlist;
+mod game_detail;
+mod library;
 mod news;
 mod search;
+mod wishlist;
 
 use crate::app::App;
 use crate::event::Key;
@@ -11,6 +12,11 @@ use crate::routes::ActiveBlock;
 
 /// Route a key event to the correct handler based on the active block.
 pub fn handle_key(app: &mut App, key: Key) {
+    if app.protocol_modal_active() {
+        auth::handle(app, key);
+        return;
+    }
+
     // Escape dismisses error or help from any block
     if app.error.is_some() {
         if key == Key::Esc {

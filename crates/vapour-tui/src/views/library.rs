@@ -41,18 +41,26 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
                 format!("{:.1} hrs", hours)
             };
             let line = Line::from(vec![
-                Span::styled(g.display_name(), Style::default().fg(theme.fg)),
-                Span::styled(
-                    format!("  {}", playtime),
-                    Style::default().fg(theme.muted),
-                ),
+                Span::styled(app.game_display_name(g), Style::default().fg(theme.fg)),
+                Span::styled(format!("  {}", playtime), Style::default().fg(theme.muted)),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let title = if app.is_searching {
-        format!(" Library ({}/{}) ", games.len(), app.games.len())
+    use crate::app::AppTypeFilter;
+    let type_tag = if app.app_type_filter == AppTypeFilter::All {
+        String::new()
+    } else {
+        format!(" [{}]", app.app_type_filter.label())
+    };
+    let title = if app.is_searching || app.app_type_filter != AppTypeFilter::All {
+        format!(
+            " Library ({}/{}){} ",
+            games.len(),
+            app.games.len(),
+            type_tag
+        )
     } else {
         format!(" Library ({}) ", app.games.len())
     };
@@ -73,7 +81,7 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         )
         .highlight_symbol("> ");
 
-    let mut state = app.library_state.clone();
+    let mut state = app.library_state;
     f.render_stateful_widget(list, content_area, &mut state);
 }
 

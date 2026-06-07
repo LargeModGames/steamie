@@ -30,23 +30,38 @@ pub struct Route {
 
 impl Route {
     pub fn library() -> Self {
-        Self { id: RouteId::Library, active_block: ActiveBlock::Library }
+        Self {
+            id: RouteId::Library,
+            active_block: ActiveBlock::Library,
+        }
     }
 
     pub fn game_detail() -> Self {
-        Self { id: RouteId::GameDetail, active_block: ActiveBlock::GameDetail }
+        Self {
+            id: RouteId::GameDetail,
+            active_block: ActiveBlock::GameDetail,
+        }
     }
 
     pub fn friends() -> Self {
-        Self { id: RouteId::Friends, active_block: ActiveBlock::Friends }
+        Self {
+            id: RouteId::Friends,
+            active_block: ActiveBlock::Friends,
+        }
     }
 
     pub fn wishlist() -> Self {
-        Self { id: RouteId::Wishlist, active_block: ActiveBlock::Wishlist }
+        Self {
+            id: RouteId::Wishlist,
+            active_block: ActiveBlock::Wishlist,
+        }
     }
 
     pub fn news() -> Self {
-        Self { id: RouteId::News, active_block: ActiveBlock::News }
+        Self {
+            id: RouteId::News,
+            active_block: ActiveBlock::News,
+        }
     }
 
     /// IoEvent to fire when this route first becomes active

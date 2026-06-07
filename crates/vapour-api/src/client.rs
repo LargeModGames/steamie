@@ -1,4 +1,7 @@
-use anyhow::{Context, Result};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
+use anyhow::{Context, Result, anyhow};
 use serde_json::Value;
 
 use crate::models::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
@@ -6,29 +9,62 @@ use crate::models::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, Wish
 const STEAM_API_BASE: &str = "https://api.steampowered.com";
 const STORE_API_BASE: &str = "https://store.steampowered.com";
 
+/// The `steam_id` field is wrapped in `Arc<RwLock>` so that a clone of this
+/// client (held by the network task) automatically sees the value written by
+/// the protocol task after login, without requiring `Arc<Mutex<SteamApiClient>>`.
+#[derive(Clone)]
 pub struct SteamApiClient {
     http: reqwest::Client,
-    api_key: String,
-    pub steam_id: String,
+    api_key: Option<String>,
+    steam_id: Arc<RwLock<Option<String>>>,
 }
 
 impl SteamApiClient {
-    pub fn new(api_key: String, steam_id: String) -> Self {
+    pub fn new(api_key: Option<String>, steam_id: Option<String>) -> Self {
         let http = reqwest::Client::builder()
             .user_agent("Vapour/0.1.0")
             .build()
             .expect("failed to build HTTP client");
-        Self { http, api_key, steam_id }
+        Self {
+            http,
+            api_key,
+            steam_id: Arc::new(RwLock::new(steam_id)),
+        }
+    }
+
+    /// Called by the protocol task after login to fill in the user's SteamID.
+    /// Because `steam_id` is an `Arc<RwLock<…>>`, all clones of this client
+    /// (including the one held by the network dispatch thread) see the update.
+    pub fn set_steam_id(&self, id: String) {
+        *self.steam_id.write().unwrap() = Some(id);
+    }
+
+    fn require_api_key(&self) -> Result<&str> {
+        self.api_key.as_deref().ok_or_else(|| {
+            anyhow!(
+                "this feature requires an api_key in your config (~/.config/vapour/config.toml)"
+            )
+        })
+    }
+
+    fn require_steam_id(&self) -> Result<String> {
+        self.steam_id
+            .read()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| anyhow!("steam_id not yet available — still connecting"))
     }
 
     pub async fn get_owned_games(&self) -> Result<Vec<Game>> {
+        let api_key = self.require_api_key()?;
+        let steam_id = self.require_steam_id()?;
         let url = format!("{STEAM_API_BASE}/IPlayerService/GetOwnedGames/v1/");
         let resp: Value = self
             .http
             .get(&url)
             .query(&[
-                ("key", self.api_key.as_str()),
-                ("steamid", self.steam_id.as_str()),
+                ("key", api_key),
+                ("steamid", steam_id.as_str()),
                 ("include_appinfo", "1"),
                 ("include_played_free_games", "1"),
                 ("format", "json"),
@@ -40,10 +76,8 @@ impl SteamApiClient {
             .await
             .context("parse GetOwnedGames")?;
 
-        let games: Vec<Game> = serde_json::from_value(
-            resp["response"]["games"].clone(),
-        )
-        .unwrap_or_default();
+        let games: Vec<Game> =
+            serde_json::from_value(resp["response"]["games"].clone()).unwrap_or_default();
 
         let mut games = games;
         games.sort_by(|a, b| b.playtime_forever.cmp(&a.playtime_forever));
@@ -51,13 +85,15 @@ impl SteamApiClient {
     }
 
     pub async fn get_friend_list(&self) -> Result<Vec<String>> {
+        let api_key = self.require_api_key()?;
+        let steam_id = self.require_steam_id()?;
         let url = format!("{STEAM_API_BASE}/ISteamUser/GetFriendList/v1/");
         let resp: Value = self
             .http
             .get(&url)
             .query(&[
-                ("key", self.api_key.as_str()),
-                ("steamid", self.steam_id.as_str()),
+                ("key", api_key),
+                ("steamid", steam_id.as_str()),
                 ("relationship", "friend"),
             ])
             .send()
@@ -84,6 +120,7 @@ impl SteamApiClient {
             return Ok(vec![]);
         }
 
+        let api_key = self.require_api_key()?;
         let url = format!("{STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/");
         let mut all = Vec::new();
 
@@ -92,10 +129,7 @@ impl SteamApiClient {
             let resp: Value = self
                 .http
                 .get(&url)
-                .query(&[
-                    ("key", self.api_key.as_str()),
-                    ("steamids", ids_str.as_str()),
-                ])
+                .query(&[("key", api_key), ("steamids", ids_str.as_str())])
                 .send()
                 .await
                 .context("GET GetPlayerSummaries")?
@@ -104,8 +138,7 @@ impl SteamApiClient {
                 .context("parse GetPlayerSummaries")?;
 
             let players: Vec<PlayerSummary> =
-                serde_json::from_value(resp["response"]["players"].clone())
-                    .unwrap_or_default();
+                serde_json::from_value(resp["response"]["players"].clone()).unwrap_or_default();
             all.extend(players);
         }
 
@@ -113,13 +146,15 @@ impl SteamApiClient {
     }
 
     pub async fn get_achievements(&self, appid: u32) -> Result<Vec<Achievement>> {
+        let api_key = self.require_api_key()?;
+        let steam_id = self.require_steam_id()?;
         let url = format!("{STEAM_API_BASE}/ISteamUserStats/GetPlayerAchievements/v1/");
         let resp: Value = self
             .http
             .get(&url)
             .query(&[
-                ("key", self.api_key.as_str()),
-                ("steamid", self.steam_id.as_str()),
+                ("key", api_key),
+                ("steamid", steam_id.as_str()),
                 ("appid", appid.to_string().as_str()),
                 ("l", "english"),
             ])
@@ -135,8 +170,7 @@ impl SteamApiClient {
         }
 
         let achievements: Vec<Achievement> =
-            serde_json::from_value(resp["playerstats"]["achievements"].clone())
-                .unwrap_or_default();
+            serde_json::from_value(resp["playerstats"]["achievements"].clone()).unwrap_or_default();
 
         Ok(achievements)
     }
@@ -163,8 +197,8 @@ impl SteamApiClient {
             return Ok(None);
         }
 
-        let details: AppDetails = serde_json::from_value(entry["data"].clone())
-            .context("deserialize AppDetails")?;
+        let details: AppDetails =
+            serde_json::from_value(entry["data"].clone()).context("deserialize AppDetails")?;
         Ok(Some(details))
     }
 
@@ -191,10 +225,48 @@ impl SteamApiClient {
         Ok(items)
     }
 
+    /// Fetch display names for a batch of app IDs using the Store API.
+    /// No API key required. Returns only entries that succeeded.
+    pub async fn get_app_names(&self, app_ids: &[u32]) -> Result<HashMap<u32, String>> {
+        if app_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let ids_str = app_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let url = format!("{STORE_API_BASE}/api/appdetails");
+        let resp: Value = self
+            .http
+            .get(&url)
+            .query(&[("appids", ids_str.as_str()), ("filters", "basic")])
+            .send()
+            .await
+            .context("GET appdetails batch")?
+            .json()
+            .await
+            .context("parse appdetails batch")?;
+
+        let mut names = HashMap::new();
+        if let Some(obj) = resp.as_object() {
+            for (key, entry) in obj {
+                if let Ok(app_id) = key.parse::<u32>()
+                    && entry["success"].as_bool() == Some(true)
+                    && let Some(name) = entry["data"]["name"].as_str()
+                {
+                    names.insert(app_id, name.to_owned());
+                }
+            }
+        }
+        Ok(names)
+    }
+
     pub async fn get_wishlist(&self) -> Result<Vec<WishlistItem>> {
+        let steam_id = self.require_steam_id()?;
         let url = format!(
             "{STORE_API_BASE}/wishlist/profiles/{}/wishlistdata/",
-            self.steam_id
+            steam_id
         );
         let text = self
             .http

@@ -1,19 +1,63 @@
+use std::collections::HashMap;
 use std::sync::mpsc;
 
 use ratatui::widgets::ListState;
+use tokio::sync::mpsc as tokio_mpsc;
 use vapour_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
 use vapour_core::Config;
+use vapour_protocol::{Persona, PersonaState, RunCommand};
 
 use crate::io_event::IoEvent;
+use crate::protocol::{ProtocolCommand, ProtocolStatus};
 use crate::routes::{ActiveBlock, Route};
+
+/// Steam-style library filter by app type. Cycles All → Games → Software/Tools with the `t` key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppTypeFilter {
+    #[default]
+    All,
+    Games,
+    SoftwareTools,
+}
+
+impl AppTypeFilter {
+    pub fn cycle(self) -> Self {
+        match self {
+            Self::All => Self::Games,
+            Self::Games => Self::SoftwareTools,
+            Self::SoftwareTools => Self::All,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Games => "Games",
+            Self::SoftwareTools => "Software/Tools",
+        }
+    }
+
+    /// Whether a game's appinfo type passes this filter. Untyped entries (`None`) count as games:
+    /// the protocol path already drops DLC/music/video, and the Web-API fallback (which reports no
+    /// type at all) only ever returns games — so `None` is game-ish by default and stays visible
+    /// under `All` and `Games`. Only `Software/Tools` is strict, since it has no fallback meaning.
+    fn matches(self, app_type: Option<&str>) -> bool {
+        match self {
+            Self::All => true,
+            Self::Games => matches!(app_type, Some("game") | None),
+            Self::SoftwareTools => matches!(app_type, Some("application" | "tool")),
+        }
+    }
+}
 
 pub struct App {
     pub navigation_stack: Vec<Route>,
     pub games: Vec<Game>,
     pub filtered_games: Vec<usize>,
-    pub friend_ids: Vec<String>,      // all IDs from API
-    pub friends: Vec<PlayerSummary>,  // summaries loaded so far
+    pub friend_ids: Vec<String>,     // all IDs from API
+    pub friends: Vec<PlayerSummary>, // summaries loaded so far
     pub wishlist: Vec<WishlistItem>,
+    pub recently_played_appids: Vec<u32>,
     pub news_feed: Vec<NewsItem>,
     pub selected_game: Option<AppDetails>,
     pub achievements: Vec<Achievement>,
@@ -24,10 +68,19 @@ pub struct App {
     pub achievements_state: ListState,
     pub search_input: String,
     pub is_searching: bool,
+    pub app_type_filter: AppTypeFilter,
     pub pending_g: bool,
     pub loading: ViewLoading,
     pub error: Option<String>,
     pub io_tx: mpsc::Sender<IoEvent>,
+    pub protocol_status: ProtocolStatus,
+    pub protocol_input: String,
+    pub protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
+    pub protocol_friends: Vec<Persona>,
+    pub friend_cmd_tx: Option<tokio_mpsc::UnboundedSender<RunCommand>>,
+    /// Names for app IDs not in the user's own library, fetched from the Store API.
+    pub game_name_cache: HashMap<u32, String>,
+    pub own_persona_state: PersonaState,
     #[allow(dead_code)]
     pub config: Config,
 }
@@ -43,7 +96,11 @@ pub struct ViewLoading {
 }
 
 impl App {
-    pub fn new(io_tx: mpsc::Sender<IoEvent>, config: Config) -> Self {
+    pub fn new(
+        io_tx: mpsc::Sender<IoEvent>,
+        protocol_tx: tokio_mpsc::UnboundedSender<ProtocolCommand>,
+        config: Config,
+    ) -> Self {
         let mut library_state = ListState::default();
         library_state.select(Some(0));
         let mut friends_state = ListState::default();
@@ -62,6 +119,7 @@ impl App {
             friend_ids: vec![],
             friends: vec![],
             wishlist: vec![],
+            recently_played_appids: vec![],
             news_feed: vec![],
             selected_game: None,
             achievements: vec![],
@@ -72,16 +130,26 @@ impl App {
             achievements_state,
             search_input: String::new(),
             is_searching: false,
+            app_type_filter: AppTypeFilter::default(),
             pending_g: false,
             loading: ViewLoading::default(),
             error: None,
             io_tx,
+            protocol_status: ProtocolStatus::Disconnected,
+            protocol_input: String::new(),
+            protocol_tx,
+            protocol_friends: vec![],
+            friend_cmd_tx: None,
+            game_name_cache: HashMap::new(),
+            own_persona_state: PersonaState::Online,
             config,
         }
     }
 
     pub fn current_route(&self) -> &Route {
-        self.navigation_stack.last().expect("navigation stack is never empty")
+        self.navigation_stack
+            .last()
+            .expect("navigation stack is never empty")
     }
 
     pub fn push_route(&mut self, route: Route) {
@@ -111,24 +179,62 @@ impl App {
         self.error = None;
     }
 
+    pub fn protocol_modal_active(&self) -> bool {
+        self.protocol_status.modal_visible()
+    }
+
+    pub fn submit_guard_code(&mut self) {
+        if self.protocol_input.is_empty() {
+            return;
+        }
+
+        let code = std::mem::take(&mut self.protocol_input);
+        let _ = self
+            .protocol_tx
+            .send(ProtocolCommand::SubmitGuardCode(code));
+        self.protocol_status = ProtocolStatus::Connecting;
+    }
+
     pub fn update_search(&mut self) {
         let q = self.search_input.to_lowercase();
-        if q.is_empty() {
-            self.filtered_games = (0..self.games.len()).collect();
-        } else {
-            self.filtered_games = self
-                .games
-                .iter()
-                .enumerate()
-                .filter(|(_, g)| g.display_name().to_lowercase().contains(&q))
-                .map(|(i, _)| i)
-                .collect();
-        }
-        self.library_state.select(if self.filtered_games.is_empty() { None } else { Some(0) });
+        let type_filter = self.app_type_filter;
+        self.filtered_games = self
+            .games
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| {
+                let name_matches =
+                    q.is_empty() || self.game_display_name(g).to_lowercase().contains(&q);
+                name_matches && type_filter.matches(g.app_type.as_deref())
+            })
+            .map(|(i, _)| i)
+            .collect();
+        self.library_state
+            .select(if self.filtered_games.is_empty() {
+                None
+            } else {
+                Some(0)
+            });
     }
 
     pub fn visible_games(&self) -> Vec<&Game> {
-        self.filtered_games.iter().map(|&i| &self.games[i]).collect()
+        self.filtered_games
+            .iter()
+            .map(|&i| &self.games[i])
+            .collect()
+    }
+
+    pub fn game_display_name<'a>(&'a self, game: &'a Game) -> &'a str {
+        game.name
+            .as_deref()
+            .filter(|name| !name.is_empty())
+            .or_else(|| {
+                self.game_name_cache
+                    .get(&game.appid)
+                    .map(String::as_str)
+                    .filter(|name| !name.is_empty())
+            })
+            .unwrap_or("Unknown Game")
     }
 
     pub fn scroll_down(state: &mut ListState, len: usize) {
