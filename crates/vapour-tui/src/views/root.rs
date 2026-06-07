@@ -119,6 +119,8 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
     {
         "  s status  ? help  r reload  q quit"
+    } else if matches!(app.current_route().id, RouteId::Library) {
+        "  t type  ? help  / search  r reload  q quit"
     } else {
         "  ? help  / search  r reload  q quit"
     };

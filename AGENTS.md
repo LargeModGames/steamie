@@ -73,6 +73,8 @@ shared App state (app.rs)
 
 `App.navigation_stack: Vec<Route>` is a push/pop stack. Each `Route` carries a `RouteId` (which view is visible) and an `ActiveBlock` (which pane has keyboard focus). `Route::load_event()` returns the `IoEvent` to fire when a route first becomes active. Views are rendered in `vapour-tui/src/views/`.
 
-### Current state (v0.2)
+### Current state (v0.2.0)
 
-Protocol auth is live (QR + credentials), friends and library load via CM, and news is sourced from keyless library/recently-played/wishlist appids. Achievements use the CM UserStats service plus a binary KV schema parser (pending live validation). Web API owned-games remains only a disconnected fallback.
+Protocol auth is live (QR + credentials), friends and library load via CM, and news is sourced from keyless library/recently-played/wishlist appids. The library is filtered by PICS `common.type` (games + software/tools only; DLC/soundtracks/videos dropped) with a Steam-style type filter (`t` cycles All / Games / Software-Tools), and the load is hardened with bounded service-method timeouts plus a race-free `wait_for_package_ids`. Web API owned-games remains only a disconnected fallback.
+
+**Deferred to v0.2.5 ("Personal Best"):** per-game playtime and achievements. Both ride Steam's `Player.*` *unified* service methods, which were proven (2026-06-07) not to return user-scoped data over the client CM connection — the authed envelope (9802) gets only a `9803` token push, never a `147` response; NonAuthed (9804) has no user context. The native fix is the dedicated `ClientGetUserStats` EMsg (achievements) and fixing the authed unified-message envelope (playtime). Both calls are currently NonAuthed stop-gaps (fast empty, no stall). See `STEAM-TUI-PLAN.md` v0.2.5.

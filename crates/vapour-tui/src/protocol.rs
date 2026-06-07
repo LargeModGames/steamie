@@ -167,6 +167,7 @@ async fn run_protocol_task(
                             playtime_forever: g.playtime_forever.max(0) as u32,
                             img_icon_url: g.img_icon_url,
                             rtime_last_played: Some(g.rtime_last_played as u64),
+                            app_type: g.app_type,
                         })
                         .collect();
                     sort_library_games(&mut games);

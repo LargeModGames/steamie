@@ -20,10 +20,11 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
             match client.get_owned_games().await {
                 Ok(games) => {
                     let mut a = app.lock().unwrap();
-                    let len = games.len();
                     a.games = games;
-                    a.filtered_games = (0..len).collect();
                     a.loading.library = false;
+                    // Rebuild filtered_games through the same path as the protocol library load so
+                    // any active search/type filter stays consistent.
+                    a.update_search();
                 }
                 Err(e) => {
                     let mut a = app.lock().unwrap();

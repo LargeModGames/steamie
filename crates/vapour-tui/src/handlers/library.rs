@@ -51,6 +51,11 @@ pub fn handle(app: &mut App, key: Key) {
             app.pending_g = false;
             app.dispatch(IoEvent::LoadLibrary);
         }
+        Key::Char('t') => {
+            app.pending_g = false;
+            app.app_type_filter = app.app_type_filter.cycle();
+            app.update_search();
+        }
         Key::Char('1') => switch_tab(app, 0),
         Key::Char('2') => switch_tab(app, 1),
         Key::Char('3') => switch_tab(app, 2),
