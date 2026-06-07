@@ -48,8 +48,19 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         })
         .collect();
 
-    let title = if app.is_searching {
-        format!(" Library ({}/{}) ", games.len(), app.games.len())
+    use crate::app::AppTypeFilter;
+    let type_tag = if app.app_type_filter == AppTypeFilter::All {
+        String::new()
+    } else {
+        format!(" [{}]", app.app_type_filter.label())
+    };
+    let title = if app.is_searching || app.app_type_filter != AppTypeFilter::All {
+        format!(
+            " Library ({}/{}){} ",
+            games.len(),
+            app.games.len(),
+            type_tag
+        )
     } else {
         format!(" Library ({}) ", app.games.len())
     };

@@ -20,6 +20,7 @@ pub fn draw(f: &mut Frame, theme: &Theme, area: Rect) {
         ("Enter", "Select / open detail"),
         ("Esc / Backspace", "Go back"),
         ("/", "Search library"),
+        ("t", "Cycle library type filter"),
         ("r", "Reload current view"),
         ("1", "Switch to Library"),
         ("2", "Switch to Friends"),

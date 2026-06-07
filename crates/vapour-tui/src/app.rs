@@ -11,6 +11,45 @@ use crate::io_event::IoEvent;
 use crate::protocol::{ProtocolCommand, ProtocolStatus};
 use crate::routes::{ActiveBlock, Route};
 
+/// Steam-style library filter by app type. Cycles All → Games → Software/Tools with the `t` key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppTypeFilter {
+    #[default]
+    All,
+    Games,
+    SoftwareTools,
+}
+
+impl AppTypeFilter {
+    pub fn cycle(self) -> Self {
+        match self {
+            Self::All => Self::Games,
+            Self::Games => Self::SoftwareTools,
+            Self::SoftwareTools => Self::All,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Games => "Games",
+            Self::SoftwareTools => "Software/Tools",
+        }
+    }
+
+    /// Whether a game's appinfo type passes this filter. Untyped entries (`None`) count as games:
+    /// the protocol path already drops DLC/music/video, and the Web-API fallback (which reports no
+    /// type at all) only ever returns games — so `None` is game-ish by default and stays visible
+    /// under `All` and `Games`. Only `Software/Tools` is strict, since it has no fallback meaning.
+    fn matches(self, app_type: Option<&str>) -> bool {
+        match self {
+            Self::All => true,
+            Self::Games => matches!(app_type, Some("game") | None),
+            Self::SoftwareTools => matches!(app_type, Some("application" | "tool")),
+        }
+    }
+}
+
 pub struct App {
     pub navigation_stack: Vec<Route>,
     pub games: Vec<Game>,
@@ -29,6 +68,7 @@ pub struct App {
     pub achievements_state: ListState,
     pub search_input: String,
     pub is_searching: bool,
+    pub app_type_filter: AppTypeFilter,
     pub pending_g: bool,
     pub loading: ViewLoading,
     pub error: Option<String>,
@@ -90,6 +130,7 @@ impl App {
             achievements_state,
             search_input: String::new(),
             is_searching: false,
+            app_type_filter: AppTypeFilter::default(),
             pending_g: false,
             loading: ViewLoading::default(),
             error: None,
@@ -156,17 +197,18 @@ impl App {
 
     pub fn update_search(&mut self) {
         let q = self.search_input.to_lowercase();
-        let filtered_games = if q.is_empty() {
-            (0..self.games.len()).collect()
-        } else {
-            self.games
-                .iter()
-                .enumerate()
-                .filter(|(_, g)| self.game_display_name(g).to_lowercase().contains(&q))
-                .map(|(i, _)| i)
-                .collect()
-        };
-        self.filtered_games = filtered_games;
+        let type_filter = self.app_type_filter;
+        self.filtered_games = self
+            .games
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| {
+                let name_matches =
+                    q.is_empty() || self.game_display_name(g).to_lowercase().contains(&q);
+                name_matches && type_filter.matches(g.app_type.as_deref())
+            })
+            .map(|(i, _)| i)
+            .collect();
         self.library_state
             .select(if self.filtered_games.is_empty() {
                 None
