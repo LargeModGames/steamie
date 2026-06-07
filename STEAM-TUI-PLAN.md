@@ -119,8 +119,8 @@ The protocol crate lands. Vapour connects directly to Steam's servers.
 - [x] Game library loads keylessly via CM `ClientLicenseList` + PICS (names/icons populate); Web API owned-games remains a disconnected fallback only. **Live-validated 2026-06-07.**
 - [x] Library shows only games + software/tools — DLC/soundtracks/videos filtered out via PICS `common.type`; a Steam-style type filter (`t` cycles All / Games / Software-Tools) composes with search. **Fixed 2026-06-07: dropped the 1336-row DLC explosion to 458 real entries.**
 - [x] Library load hardened: bounded service-method timeouts (no infinite hang) + race-free `wait_for_package_ids` (`Notify` `enable()` before state check + overall 30s timeout).
-- [~] **Per-game playtime — deferred to v0.2.5.** Returns 0 for every game; needs native protocol work (see v0.2.5).
-- [~] **Achievements — deferred to v0.2.5.** The `Player.GetUserStats#1` unified method returns nothing; the working path is the dedicated `ClientGetUserStats` EMsg (see v0.2.5).
+- [x] **Per-game playtime — done in v0.2.5.** Now native via authed `Player.ClientGetLastPlayedTimes#1`; the real fix was the service-method EMsg constants (see v0.2.5).
+- [x] **Achievements — done in v0.2.5.** Native via the dedicated `ClientGetUserStats` EMsg (818/819) + binary-KV schema parser (see v0.2.5).
 
 **Resolved / re-scoped 2026-06-07 (supersedes the 2026-06-05 known issues):**
 - **DLC rows — FIXED.** `AppCatalogInfo`/`ProtocolGame`/`Game` now carry `app_type` (lowercased `common.type`); `pics::is_library_entry` keeps game/application/tool + named-untyped and drops dlc/music/video/empty rows. Filter applied to the final collected Vec. Live: 1336 → 458 entries. Plus the new TUI type filter.
@@ -183,29 +183,37 @@ Tech: Port core authentication and friends logic from SteamKit2 (C#) and node-st
 Native per-user stats. Finishes the two v0.2.0 items that can't go through the Web API — playtime and
 achievements — implemented entirely in `vapour-protocol` (no `api_key`, no scraping).
 
-**Why this is its own release.** Live validation (2026-06-07) proved the `Player.*` *unified* service
-methods (`Player.GetUserStats#1`, `Player.ClientGetLastPlayedTimes#1`) don't return user-scoped data
-over the client CM connection — authed (9802) yields only a `9803` token push and never a `147`
-response; NonAuthed (9804) responds but with no user identity (empty schema / `games=0`). The data is
-private per-user, so the Steam Web API (each user's own key) or SteamDB / third-party sites cannot
-supply it cleanly either — SteamDB only mirrors *public* PICS metadata, not your hours or unlock state.
-The working path is the **dedicated client EMsgs** the real Steam client uses — the same message
-*category* as PICS / friends / persona, which already work in our implementation.
+**STATUS: COMPLETE (live-validated 2026-06-07).** Both items work natively over CM. See the checklist
+below for the exact fixes; the key insight is in the "Why" note's correction.
 
-- [ ] **Achievements via dedicated `ClientGetUserStats` (EMsg 818 → `ClientGetUserStatsResponse` 819).**
-      High confidence. Replaces `Player.GetUserStats#1`. The response carries the binary-KV stats
-      schema (already handled by `kv.rs`) **and** the user's `achievement_blocks` (unlocked bits +
-      unlock times). Work: add `CMsgClientGetUserStats`/`…Response` proto defs (SteamDatabase/Protobufs),
-      add the EMsg constants, send via the existing job-correlated `request` path, parse + merge unlock
-      state. Then capture raw schema bytes from a validated game as a `kv.rs` regression fixture.
-- [ ] **Per-game playtime — native.** Lower confidence; genuine protocol debugging. Real clients get
-      playtime via `Player.GetLastPlayedTimes` — the same unified method failing for us — so the failure
-      is most likely a fixable bug in how we send *authed* unified messages (the 9802 envelope getting a
-      `9803` push instead of a `147`), not a hard limit. Diff our request framing against SteamKit2 /
-      node-steam-user's authed unified-message path; if the unified path is genuinely unfixable,
-      investigate a dedicated playtime EMsg.
-- [ ] Remove the NonAuthed `Player.*` stop-gaps and their KNOWN-LIMITATION comments once native paths land.
-- [ ] Flip the v0.2.0 playtime + achievements items to done; update `AGENTS.md` "Current state".
+**Why this was its own release (and the real root cause).** v0.2.0 concluded the `Player.*` *unified*
+service methods (`Player.GetUserStats#1`, `Player.ClientGetLastPlayedTimes#1`) didn't return user-scoped
+data over CM — the "authed (9802)" call yielded only a `9803` push and never a `147`. **That diagnosis
+was right about the symptom but wrong about the cause: `9802`/`9803` are not `ServiceMethodCallFromClient`/
+`ServiceMethodSendToClient` at all — they are `ClientServerTimestampRequest`/`Response`.** The correct
+service-method EMsgs are **151** and **152**. So the v0.2.0 "authed" call was literally a timestamp ping,
+and the `9803` `{0, server_time_ms}` reply was the server clock. With the constants corrected, the authed
+unified call (playtime) returns a normal `147`, and achievements use the dedicated `ClientGetUserStats`
+EMsg (818/819) — both proven live.
+
+- [x] **Achievements via dedicated `ClientGetUserStats` (EMsg 818 → `ClientGetUserStatsResponse` 819).**
+      Done & live-validated 2026-06-07 (Marvel Rivals: 49/49 unlocked with names + unlock times; AoE II
+      DE: 357 definitions). Added `CMsgClientGetUserStats`/`…Response` proto defs + EMsg constants, sent
+      via the job-correlated `request` path. **Parser fix:** achievement stats are identified by the
+      presence of a `bits` block, not `type == 4` — real schemas store `type` as a word (`"INT"`, …).
+      Unlock state from `achievement_blocks` (global bit = `achievement_id*32 + pos`, unlocked iff
+      `unlock_time != 0`); on `eresult != OK`, briefly mark games-played and retry. Captured a real
+      schema (appid 410110) as the `parses_real_captured_schema` regression fixture.
+- [x] **Per-game playtime — native.** Done & live-validated 2026-06-07 (181/458 games with real
+      playtime; e.g. Marvel Rivals 768h, Rocket League 1803h) via authed `Player.ClientGetLastPlayedTimes#1`.
+      **Root cause was not the framing but wrong EMsg constants:** `ServiceMethodCallFromClient` is **151**
+      and `ServiceMethodSendToClient` is **152** — `9802`/`9803` are actually `ClientServerTimestamp`
+      Request/Response. The old "authed" call on 9802 was a timestamp ping, so Steam only returned a
+      `{0, server_time_ms}` `9803` and never a `ServiceMethodResponse` (147). Correcting the constants
+      made the authed unified call return a real `147`.
+- [x] Removed the NonAuthed `Player.*` stop-gaps and their KNOWN-LIMITATION comments (playtime now
+      `call_authed`; achievements now the dedicated EMsg).
+- [x] Flipped the v0.2.0 playtime + achievements items to done; updated `AGENTS.md` "Current state".
 
 Tech: dedicated client EMsgs (not unified service methods), modelled on SteamKit2's `ClientGetUserStats`
 and node-steam-user's stats handling. The `kv.rs` binary-KV schema parser and `ProtocolAchievement` model
