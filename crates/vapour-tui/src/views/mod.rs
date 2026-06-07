@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod chat;
 pub mod error;
 pub mod friends;
 pub mod game_detail;

@@ -10,6 +10,7 @@ vapour-api = { path = "../vapour-api" }
 vapour-protocol = { path = "../../../vapour-protocol" }
 tokio = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 anyhow = { workspace = true }
 toml = "0.8"
 dirs = "6"
