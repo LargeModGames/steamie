@@ -51,6 +51,16 @@ pub fn handle(app: &mut App, key: Key) {
             app.pending_g = false;
             app.dispatch(IoEvent::LoadLibrary);
         }
+        Key::Char('l') => {
+            app.pending_g = false;
+            if let Some(appid) = app.selected_library_appid() {
+                app.dispatch(IoEvent::LaunchGame(appid));
+            }
+        }
+        Key::Char('L') => {
+            app.pending_g = false;
+            app.open_quick_launch();
+        }
         Key::Char('t') => {
             app.pending_g = false;
             app.app_type_filter = app.app_type_filter.cycle();

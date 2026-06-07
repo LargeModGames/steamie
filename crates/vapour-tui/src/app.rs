@@ -120,6 +120,11 @@ pub struct App {
     /// protocol task is up; `None` until then. Keeps disk I/O off the render-critical App mutex.
     pub chat_persist_tx: Option<tokio_mpsc::UnboundedSender<(u64, Vec<ChatMessage>)>>,
     pub config: Config,
+    // --- launch (v0.4.0) ---
+    /// Transient "▶ Launched …" / "DRY-RUN …" message shown briefly in the status bar.
+    pub launch_status: Option<(String, Instant)>,
+    /// Selection within the recently-played quick-launch overlay.
+    pub quick_launch_state: ListState,
 }
 
 /// Per-view loading flags — lets the UI stay interactive while any single view loads.
@@ -152,6 +157,9 @@ impl App {
         chat_list_state.select(Some(0));
 
         let chat_history = ChatHistory::new(config.chat.history_retention_days);
+
+        let mut quick_launch_state = ListState::default();
+        quick_launch_state.select(Some(0));
 
         Self {
             navigation_stack: vec![Route::library()],
@@ -192,6 +200,8 @@ impl App {
             chat_history,
             chat_persist_tx: None,
             config,
+            launch_status: None,
+            quick_launch_state,
         }
     }
 
@@ -226,6 +236,76 @@ impl App {
 
     pub fn clear_error(&mut self) {
         self.error = None;
+    }
+
+    /// Show a transient launch message in the status bar (auto-expires on its own).
+    pub fn set_launch_status(&mut self, msg: String) {
+        self.launch_status = Some((msg, Instant::now()));
+    }
+
+    /// The launch message while it is still fresh (~6s), for the status bar.
+    pub fn launch_status_message(&self) -> Option<&str> {
+        self.launch_status.as_ref().and_then(|(msg, at)| {
+            (at.elapsed() < Duration::from_secs(6)).then_some(msg.as_str())
+        })
+    }
+
+    /// AppID of the currently-highlighted library row, if any.
+    pub fn selected_library_appid(&self) -> Option<u32> {
+        let sel = self.library_state.selected()?;
+        let game_idx = *self.filtered_games.get(sel)?;
+        Some(self.games[game_idx].appid)
+    }
+
+    /// Whether a key-capturing modal overlay (currently just quick-launch) owns the keyboard.
+    /// Used by the event loop so `q` closes the overlay instead of quitting the app.
+    pub fn modal_overlay_active(&self) -> bool {
+        matches!(self.active_block(), ActiveBlock::QuickLaunch)
+    }
+
+    /// Recently-played games as `(appid, display name)`, in most-recent order. Backs the
+    /// quick-launch overlay.
+    pub fn quick_launch_entries(&self) -> Vec<(u32, String)> {
+        self.recently_played_appids
+            .iter()
+            .map(|&appid| {
+                let name = self
+                    .games
+                    .iter()
+                    .find(|g| g.appid == appid)
+                    .map(|g| self.game_display_name(g).to_owned())
+                    .or_else(|| self.game_name_cache.get(&appid).cloned())
+                    .unwrap_or_else(|| format!("appid {appid}"));
+                (appid, name)
+            })
+            .collect()
+    }
+
+    /// AppID highlighted in the quick-launch overlay, if any.
+    pub fn selected_quick_launch_appid(&self) -> Option<u32> {
+        let sel = self.quick_launch_state.selected()?;
+        self.recently_played_appids.get(sel).copied()
+    }
+
+    /// Open the recently-played quick-launch overlay over the current view.
+    pub fn open_quick_launch(&mut self) {
+        self.quick_launch_state.select(if self.recently_played_appids.is_empty() {
+            None
+        } else {
+            Some(0)
+        });
+        self.navigation_stack
+            .last_mut()
+            .expect("never empty")
+            .active_block = ActiveBlock::QuickLaunch;
+    }
+
+    /// Close the quick-launch overlay, returning focus to the library list.
+    pub fn close_quick_launch(&mut self) {
+        self.navigation_stack
+            .last_mut()
+            .expect("never empty")
+            .active_block = ActiveBlock::Library;
     }
 
     pub fn protocol_modal_active(&self) -> bool {

@@ -1,5 +1,6 @@
 use crate::app::App;
 use crate::event::Key;
+use crate::io_event::IoEvent;
 use crate::routes::ActiveBlock;
 
 pub fn handle(app: &mut App, key: Key) {
@@ -23,6 +24,13 @@ pub fn handle(app: &mut App, key: Key) {
             app.pending_g = false;
             let len = app.achievements.len();
             App::scroll_bottom(&mut app.achievements_state, len);
+        }
+        Key::Enter | Key::Char('l') => {
+            app.pending_g = false;
+            if let Some(details) = &app.selected_game {
+                let appid = details.steam_appid;
+                app.dispatch(IoEvent::LaunchGame(appid));
+            }
         }
         Key::Esc | Key::Backspace => {
             app.pending_g = false;

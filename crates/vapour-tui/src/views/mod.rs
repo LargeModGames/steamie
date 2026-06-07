@@ -7,5 +7,6 @@ pub mod help;
 pub mod library;
 pub mod loading;
 pub mod news;
+pub mod quick_launch;
 pub mod root;
 pub mod wishlist;

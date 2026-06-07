@@ -51,6 +51,9 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
     if matches!(app.active_block(), crate::routes::ActiveBlock::Help) {
         super::help::draw(f, theme, area);
     }
+    if matches!(app.active_block(), crate::routes::ActiveBlock::QuickLaunch) {
+        super::quick_launch::draw(f, app, theme, area);
+    }
     // Game detail loads over existing content, so keep a small overlay for that only
     if app.loading.game_detail && app.selected_game.is_none() {
         super::loading::draw(f, theme, area);
@@ -139,17 +142,33 @@ fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
     {
         "  Enter chat  s status  ? help  r reload  q quit"
+    } else if matches!(app.current_route().id, RouteId::GameDetail) {
+        "  Enter/l launch  Esc back  ? help  q quit"
     } else if matches!(app.current_route().id, RouteId::Library) {
-        "  t type  ? help  / search  r reload  q quit"
+        "  l launch  L recent  t type  / search  ? help  q quit"
     } else {
         "  ? help  / search  r reload  q quit"
     };
 
-    let spans = vec![
-        Span::styled(protocol, Style::default().fg(theme.fg)),
-        Span::raw("  "),
-        Span::styled(hints, Style::default().fg(theme.muted)),
-    ];
+    // A fresh launch message takes over the hint slot briefly.
+    let spans = if let Some(msg) = app.launch_status_message() {
+        vec![
+            Span::styled(protocol, Style::default().fg(theme.fg)),
+            Span::raw("  "),
+            Span::styled(
+                msg.to_owned(),
+                Style::default()
+                    .fg(theme.tab_active)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]
+    } else {
+        vec![
+            Span::styled(protocol, Style::default().fg(theme.fg)),
+            Span::raw("  "),
+            Span::styled(hints, Style::default().fg(theme.muted)),
+        ]
+    };
     let bar = Paragraph::new(Line::from(spans)).style(Style::default().bg(theme.status_bar_bg));
     f.render_widget(bar, area);
 }
