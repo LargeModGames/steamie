@@ -246,14 +246,34 @@ wall-clock timestamps are not displayed (no `chrono` dependency yet).
 
 ### v0.4.0 -- "Launch Day"
 
-Game launching. The DRM-aware hybrid approach.
+Game launching. **Shipped as Steam-mediated launch:** every game launches through the official Steam
+client via `steam -applaunch <appid> [args]` (Steam starts itself when down; presence/"playing X" is
+handled by the client we delegate to). Implemented as one sequential PR — the `../../../vapour-protocol`
+path dep breaks in git worktrees and the feature is a vertical chain over shared TUI files — with
+**zero `vapour-protocol` changes**, since launching is a local process action on the `IoEvent` path.
 
-- [ ] Detect whether a game uses DRM (maintain/crowdsource a list, cross-reference with PCGamingWiki)
-- [ ] Non-DRM games: launch directly from TUI (no Steam client needed)
-- [ ] DRM games: silently start Steam in background, launch game, kill Steam on game exit
-- [ ] Steam process lifecycle management (detect if already running, reuse)
-- [ ] Launch options support (custom args, Proton/Wine prefix on Linux)
-- [ ] Recently played quick-launch bar
+**STATUS: COMPLETE (dry-run + unit-tested; live launch validated by the user).** No new crates: the
+Steam exe/running-state is read via `reg.exe` on Windows and the filesystem on Linux/macOS; the string
+parsers are pure and unit-tested.
+
+- [x] **Launch a game from the TUI** — `l` on a library row, `Enter`/`l` in game detail. Routes
+      `IoEvent::LaunchGame(appid)` → `vapour-core::launcher::launch` off-thread via `spawn_blocking`.
+- [x] **Steam process lifecycle (detect if already running, reuse)** — resolves the Steam exe
+      (Windows registry via `reg.exe` then `%ProgramFiles(x86)%\Steam`; Linux `PATH`/`~/.steam`; macOS
+      `Steam.app`); reuses a running Steam and starts it if down.
+- [x] **Kill Steam on game exit — best-effort, opt-in** (`[launch] kill_steam_on_exit`, default off):
+      only if *we* started Steam. A detached watcher polls Steam's per-app running flag (Windows
+      registry / Linux `registry.vdf`) then runs `steam -shutdown`.
+- [x] **Launch options (custom args)** — `[launch] extra_args` + per-game `[launch.game_args]`, merged
+      by `LaunchConfig::options_for`. A `dry_run` mode logs the exact command without spawning.
+- [x] **Recently-played quick-launch bar** — `L` opens an overlay over the library
+      (`views/quick_launch.rs`); `Enter` launches the selected recently-played appid.
+- [ ] Detect whether a game uses DRM (crowdsource / PCGamingWiki) — **deferred**: only gates the
+      no-Steam direct-launch path; under Steam-mediated launch it gates nothing.
+- [ ] Non-DRM games: launch directly from the TUI (no Steam client) — **deferred as experimental**
+      (Steamworks init makes no-Steam launch unreliable for most titles).
+- [ ] Proton/Wine prefix wrapping — **deferred**: Steam applies Proton itself for Steam-mediated
+      launches; external prefix wrapping only matters for the direct-launch path.
 
 ### v0.5.0 -- "The Bazaar"
 

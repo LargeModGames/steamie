@@ -91,6 +91,16 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
                     continue;
                 }
 
+                // A key-capturing overlay (quick-launch) gets every key, so 'q' closes it rather
+                // than quitting the app.
+                if app_lock.modal_overlay_active() {
+                    if key == Key::Ctrl('c') {
+                        break;
+                    }
+                    handlers::handle_key(&mut app_lock, key);
+                    continue;
+                }
+
                 match key {
                     Key::Char('q') | Key::Ctrl('c') => break,
                     other => handlers::handle_key(&mut app_lock, other),

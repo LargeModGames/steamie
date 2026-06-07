@@ -25,6 +25,8 @@ pub enum ActiveBlock {
     Chat,
     /// Message composer (text input) focused.
     ChatComposer,
+    /// Recently-played quick-launch overlay (v0.4.0).
+    QuickLaunch,
 }
 
 #[derive(Debug, Clone)]
