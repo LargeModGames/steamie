@@ -29,15 +29,15 @@ pub fn handle(app: &mut App, key: Key) {
         }
         Key::Enter => {
             app.pending_g = false;
-            if let Some(sel) = app.library_state.selected() {
-                if let Some(&game_idx) = app.filtered_games.get(sel) {
-                    let appid = app.games[game_idx].appid;
-                    app.selected_game = None;
-                    app.achievements.clear();
-                    app.push_route(Route::game_detail());
-                    app.dispatch(IoEvent::LoadGameDetail(appid));
-                    app.dispatch(IoEvent::LoadAchievements(appid));
-                }
+            if let Some(sel) = app.library_state.selected()
+                && let Some(&game_idx) = app.filtered_games.get(sel)
+            {
+                let appid = app.games[game_idx].appid;
+                app.selected_game = None;
+                app.achievements.clear();
+                app.push_route(Route::game_detail());
+                app.dispatch(IoEvent::LoadGameDetail(appid));
+                app.dispatch(IoEvent::LoadAchievements(appid));
             }
         }
         Key::Char('/') => {
@@ -50,6 +50,11 @@ pub fn handle(app: &mut App, key: Key) {
         Key::Char('r') => {
             app.pending_g = false;
             app.dispatch(IoEvent::LoadLibrary);
+        }
+        Key::Char('t') => {
+            app.pending_g = false;
+            app.app_type_filter = app.app_type_filter.cycle();
+            app.update_search();
         }
         Key::Char('1') => switch_tab(app, 0),
         Key::Char('2') => switch_tab(app, 1),
@@ -67,6 +72,8 @@ pub fn handle(app: &mut App, key: Key) {
 }
 
 pub fn switch_tab(app: &mut App, tab: u8) {
+    use crate::protocol::ProtocolStatus;
+
     let route = match tab {
         0 => Route::library(),
         1 => Route::friends(),
@@ -77,6 +84,12 @@ pub fn switch_tab(app: &mut App, tab: u8) {
     let event = route.load_event();
     app.navigation_stack = vec![route];
     if let Some(ev) = event {
+        // Skip Web API friend loading when the protocol connection is active.
+        if matches!(ev, IoEvent::LoadFriendIds)
+            && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
+        {
+            return;
+        }
         app.dispatch(ev);
     }
 }

@@ -2,7 +2,6 @@ use ratatui::{
     Frame,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
-
     widgets::{Block, BorderType, Borders, Row, Table, TableState},
 };
 
@@ -38,8 +37,11 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         Constraint::Length(12),
     ];
 
-    let header = Row::new(["#", "Name", "Added"])
-        .style(Style::default().fg(theme.muted).add_modifier(Modifier::BOLD));
+    let header = Row::new(["#", "Name", "Added"]).style(
+        Style::default()
+            .fg(theme.muted)
+            .add_modifier(Modifier::BOLD),
+    );
 
     let title = format!(" Wishlist ({}) ", app.wishlist.len());
 

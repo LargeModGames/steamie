@@ -5,8 +5,10 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Tabs},
 };
+use vapour_protocol::PersonaState;
 
 use crate::app::App;
+use crate::protocol::{ProtocolGuardKind, ProtocolStatus};
 use crate::routes::RouteId;
 use crate::theme::Theme;
 
@@ -52,6 +54,9 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme) {
     if app.loading.game_detail && app.selected_game.is_none() {
         super::loading::draw(f, theme, area);
     }
+    if app.protocol_modal_active() {
+        super::auth::draw(f, app, theme, area);
+    }
 }
 
 fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
@@ -71,20 +76,60 @@ fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
         .block(Block::default().borders(Borders::ALL).title(" vapour "))
         .select(selected)
         .style(Style::default().fg(theme.tab_inactive))
-        .highlight_style(Style::default().fg(theme.tab_active).add_modifier(Modifier::BOLD));
+        .highlight_style(
+            Style::default()
+                .fg(theme.tab_active)
+                .add_modifier(Modifier::BOLD),
+        );
 
     f.render_widget(tabs, area);
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
-    let hints = if app.is_searching {
+    let protocol = match &app.protocol_status {
+        ProtocolStatus::Disconnected => "○ Web API only".to_owned(),
+        ProtocolStatus::Connecting => "◌ Connecting to Steam".to_owned(),
+        ProtocolStatus::AwaitingQrScan { .. } => "◎ Scan Steam QR".to_owned(),
+        ProtocolStatus::AwaitingGuardCode { kind } => match kind {
+            ProtocolGuardKind::EmailCode => "◎ Awaiting email code".to_owned(),
+            ProtocolGuardKind::DeviceCode => "◎ Awaiting Steam Guard code".to_owned(),
+            ProtocolGuardKind::DeviceConfirmation => "◎ Approve in Steam app".to_owned(),
+        },
+        ProtocolStatus::LoggedOn { account_name } => {
+            let state_label = match app.own_persona_state {
+                PersonaState::Online => "",
+                PersonaState::Away => " [Away]",
+                PersonaState::Invisible => " [Invisible]",
+                PersonaState::Busy => " [Busy]",
+                _ => "",
+            };
+            format!("● Connected as {account_name}{state_label}")
+        }
+        ProtocolStatus::Failed(message) => format!("○ Web API only ({message})"),
+    };
+    let hints = if app.protocol_modal_active() {
+        if app.protocol_status.accepts_text_input() {
+            "  Enter submit  Esc cancel"
+        } else {
+            "  Esc cancel"
+        }
+    } else if app.is_searching {
         "  Enter confirm  Esc cancel  (type to filter)"
+    } else if matches!(app.current_route().id, RouteId::Friends)
+        && matches!(app.protocol_status, ProtocolStatus::LoggedOn { .. })
+    {
+        "  s status  ? help  r reload  q quit"
+    } else if matches!(app.current_route().id, RouteId::Library) {
+        "  t type  ? help  / search  r reload  q quit"
     } else {
         "  ? help  / search  r reload  q quit"
     };
 
-    let spans = vec![Span::styled(hints, Style::default().fg(theme.muted))];
-    let bar = Paragraph::new(Line::from(spans))
-        .style(Style::default().bg(theme.status_bar_bg));
+    let spans = vec![
+        Span::styled(protocol, Style::default().fg(theme.fg)),
+        Span::raw("  "),
+        Span::styled(hints, Style::default().fg(theme.muted)),
+    ];
+    let bar = Paragraph::new(Line::from(spans)).style(Style::default().bg(theme.status_bar_bg));
     f.render_widget(bar, area);
 }

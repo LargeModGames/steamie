@@ -11,4 +11,6 @@ pub enum IoEvent {
     LoadGameDetail(u32),
     LoadAchievements(u32),
     RefreshAll,
+    /// Look up game names for app IDs not in the user's library.
+    LookupGameNames(Vec<u32>),
 }
