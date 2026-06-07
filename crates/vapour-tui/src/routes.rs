@@ -7,6 +7,7 @@ pub enum RouteId {
     Friends,
     Wishlist,
     News,
+    Chat,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,6 +21,10 @@ pub enum ActiveBlock {
     Search,
     Help,
     Error,
+    /// Conversation list focused.
+    Chat,
+    /// Message composer (text input) focused.
+    ChatComposer,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +69,13 @@ impl Route {
         }
     }
 
+    pub fn chat() -> Self {
+        Self {
+            id: RouteId::Chat,
+            active_block: ActiveBlock::Chat,
+        }
+    }
+
     /// IoEvent to fire when this route first becomes active
     pub fn load_event(&self) -> Option<IoEvent> {
         match self.id {
@@ -71,7 +83,8 @@ impl Route {
             RouteId::Friends => Some(IoEvent::LoadFriendIds),
             RouteId::Wishlist => Some(IoEvent::LoadWishlist),
             RouteId::News => Some(IoEvent::LoadNews),
-            RouteId::GameDetail => None,
+            // Chat history is fetched per-conversation on open, not on route load.
+            RouteId::GameDetail | RouteId::Chat => None,
         }
     }
 }

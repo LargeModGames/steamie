@@ -24,18 +24,8 @@ pub fn draw(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
 }
 
 fn draw_protocol_friends(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
-    let mut friends: Vec<&Persona> = app.protocol_friends.iter().collect();
-    // Sort: in-game first, then online, then offline; alphabetical within each group.
-    friends.sort_by_key(|p| {
-        let order = if p.game_app_id.is_some() {
-            0u8
-        } else if p.state != PersonaState::Offline && p.state != PersonaState::Invisible {
-            1
-        } else {
-            2
-        };
-        (order, p.name.to_lowercase())
-    });
+    // Shared with the "open chat" handler so the selection index maps to the same friend.
+    let friends = app.sorted_protocol_friends();
 
     let online = friends
         .iter()

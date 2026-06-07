@@ -1,4 +1,5 @@
 mod auth;
+mod chat;
 mod friends;
 mod game_detail;
 mod library;
@@ -40,6 +41,7 @@ pub fn handle_key(app: &mut App, key: Key) {
         ActiveBlock::Friends => friends::handle(app, key),
         ActiveBlock::Wishlist => wishlist::handle(app, key),
         ActiveBlock::News => news::handle(app, key),
+        ActiveBlock::Chat | ActiveBlock::ChatComposer => chat::handle(app, key),
         ActiveBlock::Help | ActiveBlock::Error => {}
     }
 }
