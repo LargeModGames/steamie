@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use crossterm::event::{self, Event as CEvent};
+use crossterm::event::{self, Event as CEvent, KeyEventKind};
 
 use super::key::Key;
 
@@ -25,7 +25,10 @@ impl Events {
             loop {
                 if event::poll(tick_rate).unwrap_or(false) {
                     match event::read() {
-                        Ok(CEvent::Key(k)) => {
+                        // On Windows, crossterm emits a KeyEvent for both press and
+                        // release; forwarding both moves list selections twice per
+                        // keypress. Only act on presses (and OS key-repeats).
+                        Ok(CEvent::Key(k)) if k.kind == KeyEventKind::Press => {
                             let _ = tx.send(Event::Key(Key::from(k)));
                         }
                         Ok(CEvent::Resize(_, _)) => {
