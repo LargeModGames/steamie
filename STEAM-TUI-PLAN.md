@@ -223,12 +223,26 @@ already exist — this is wiring the right message, not new parsing.
 
 Real-time chat. This is the feature that makes Vapour a daily driver.
 
-- [ ] 1-on-1 chat messaging
-- [ ] Group chat support
-- [ ] Chat history (locally cached)
-- [ ] Message notifications (terminal bell / desktop notification)
-- [ ] Typing indicators
-- [ ] Chat embedded alongside friends list (split pane layout)
+- [x] 1-on-1 chat messaging — native via the unified `FriendMessages.*` service in `vapour-protocol`
+      (`send_message`/`get_recent_messages`/incoming `FriendMessagesClient.IncomingMessage#1` push).
+      Sends surface on Steam's confirmation, stamped with the authoritative `server_timestamp`+`ordinal`.
+- [ ] Group chat support — **deferred to v0.3.1** (`ChatRoom.*` is a whole separate protocol surface).
+- [x] Chat history (locally cached) — per-conversation JSON under `~/.local/state/vapour/chat/`
+      (`vapour-core::chat_history`), `(timestamp, ordinal)` dedupe + retention pruning, lazily loaded
+      before any save so an incoming message can't truncate prior history; persisted off the UI lock.
+- [x] Message notifications (terminal bell / desktop notification) — bell by default + optional
+      `notify-rust` desktop notification, `[chat]`-configurable, suppressed for the focused conversation.
+- [x] Typing indicators — send (throttled while composing) + receive (`chat_entry_type` typing push).
+- [x] Chat embedded alongside friends list (split pane layout) — Chat tab (key `5`): conversation list
+      + message history + composer; `Enter` on a friend opens a chat.
+
+**STATUS: 1-on-1 chat COMPLETE (code-reviewed, unit-tested). Live send/receive/typing e2e pending an
+interactive run with a second Steam account.** Implemented sequentially across two repos (protocol PR in
+`vapour-protocol`, UI PR in `vapour`) rather than the usual parallel split — chat is a hard dependency
+chain (protocol → core → app → view → handlers) and the relative `../../../vapour-protocol` path dep
+breaks inside git worktrees. **Known limitations:** list selection is positional (a reorder under the
+cursor can open the adjacent entry); the chat list is not preloaded from disk on startup; per-message
+wall-clock timestamps are not displayed (no `chrono` dependency yet).
 
 ### v0.4.0 -- "Launch Day"
 

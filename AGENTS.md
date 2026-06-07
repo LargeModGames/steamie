@@ -41,6 +41,11 @@ account_name = ""     # optional hint for credential login
 [ui]
 tick_rate_ms = 250   # optional, default 250
 theme = "dark"       # optional, default "dark"
+
+[chat]
+notifications_enabled = true    # optional, default true — terminal bell on incoming message
+desktop_notifications = false   # optional, default false — also raise a notify-rust desktop notification
+history_retention_days = 30     # optional, default 30 — local chat history kept; 0 = keep everything
 ```
 
 ## Architecture
@@ -73,7 +78,9 @@ shared App state (app.rs)
 
 `App.navigation_stack: Vec<Route>` is a push/pop stack. Each `Route` carries a `RouteId` (which view is visible) and an `ActiveBlock` (which pane has keyboard focus). `Route::load_event()` returns the `IoEvent` to fire when a route first becomes active. Views are rendered in `vapour-tui/src/views/`.
 
-### Current state (v0.2.5)
+### Current state (v0.3.0)
+
+Real-time 1-on-1 chat is live (v0.3.0 "We Need to Talk"). A **Chat tab** (key `5`) shows a split pane — conversation list on the left, scrollable message history + composer on the right; press `Enter` on a friend to open a chat. Messaging runs natively over the modern unified **`FriendMessages.*`** service in `vapour-protocol` (`src/chat.rs`): `send_message`/`send_typing`/`get_recent_messages` via `call_authed` (EMsg 151→147), and an unsolicited incoming push decoded from `ServiceMethodSendToClient` (152, `FriendMessagesClient.IncomingMessage#1`). Sends surface on Steam's confirmation, stamped with the authoritative `server_timestamp`+`ordinal`, so every message (sent/received/backfilled) dedupes on one stable `(timestamp, ordinal)` key. Protocol events reach the UI as new `FriendsEvent` variants (`IncomingMessage`/`MessageSent`/`TypingNotification`/`RecentMessages`); the UI sends `RunCommand::{SendMessage,SendTyping,GetRecentMessages}` over the existing `friend_cmd_tx`. History is cached locally per-conversation as JSON under `~/.local/state/vapour/chat/` (`vapour-core::chat_history`), lazily loaded before any save so an incoming message can't truncate prior history, and persisted on a serialized off-lock task. Notifications are the terminal bell (default) plus optional `notify-rust` desktop notifications, both `[chat]`-configurable. Group chat (`ChatRoom.*`) is deferred to v0.3.1. **Known limitations:** the conversation/friends list selects by position, so a reorder under the cursor can open the adjacent entry; the chat list is not preloaded from disk on startup (a conversation appears once a message arrives or it is opened from Friends); per-message wall-clock timestamps are not yet displayed.
 
 Protocol auth is live (QR + credentials), friends and library load via CM, and news is sourced from keyless library/recently-played/wishlist appids. The library is filtered by PICS `common.type` (games + software/tools only; DLC/soundtracks/videos dropped) with a Steam-style type filter (`t` cycles All / Games / Software-Tools), and the load is hardened with bounded service-method timeouts plus a race-free `wait_for_package_ids`. Web API owned-games remains only a disconnected fallback.
 
