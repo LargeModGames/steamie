@@ -167,6 +167,13 @@ async fn run_protocol_task(
                         protocol_games.into_iter().map(|game| game.appid).collect();
                 }
                 FriendsEvent::OwnedGames(protocol_games) => {
+                    // Stash each game's launch entries for the direct (no-Steam) launch path
+                    // before the protocol games are consumed into the api `Game` model.
+                    for g in &protocol_games {
+                        if !g.launch.is_empty() {
+                            app.app_launch_info.insert(g.appid, g.launch.clone());
+                        }
+                    }
                     let mut games: Vec<Game> = protocol_games
                         .into_iter()
                         .map(|g| Game {
