@@ -1,6 +1,23 @@
 # Plan — v0.4.1: Direct launch for DRM-free games (no Steam client) + downloading roadmap
 
-> Status: **planned, not started.** Working document — refine before implementing.
+> Status: **direct launch IMPLEMENTED** (build + clippy + unit tests green; install detection and
+> direct dry-run live-validated on this machine; end-user no-Steam launch of a DRM-free title still
+> pending). Downloading roadmap unchanged (still deferred / blocked offline).
+>
+> **Divergences from this plan as built** (the plan was a working doc; these were the refinements):
+> - **DRM-free list format:** `DRM-FREE-GAMES.md` (a markdown table parsed by `drm_free.rs`), not
+>   `drm-free.toml` — per the user's request for a `.md` file. Same repo-root + `include_str!` +
+>   `~/.config/vapour/drm-free.md` user-merge design. Seeded with Terraria/Stardew Valley/Factorio.
+> - **`depots` field NOT added** to the PICS pass (Unit/PR-1) — it only serves the deferred,
+>   offline-blocked downloader, so adding it now would be speculative. PICS surfaces `installdir` +
+>   `config/launch` only. (Re-add when the downloader is actually built.)
+> - **Try-then-fallback simplified:** no ~8s fast-exit heuristic (it adds UI latency and is fragile).
+>   The curated list is the gate; fallback to (silent) Steam happens only on *resolution/spawn
+>   failure*, which is instant and deterministic. Config is `direct_launch` + `force_direct` (the
+>   plan's `prefer_direct`); no `try_fallback` knob.
+> - **Added `[launch] silent` (default on)** — `steam -silent` — so the Steam-mediated path also hides
+>   Steam. This was the user's primary ask ("launch quietly in the background").
+> - **Optional install/DRM indicator (Unit E) not added** — deferred as non-essential UX.
 
 ## Context
 

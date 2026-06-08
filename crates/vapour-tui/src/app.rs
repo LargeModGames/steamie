@@ -6,7 +6,7 @@ use ratatui::widgets::ListState;
 use tokio::sync::mpsc as tokio_mpsc;
 use vapour_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
 use vapour_core::{ChatHistory, Config};
-use vapour_protocol::{ChatMessage, Persona, PersonaState, RunCommand};
+use vapour_protocol::{ChatMessage, LaunchEntry, Persona, PersonaState, RunCommand};
 
 use crate::io_event::IoEvent;
 use crate::protocol::{ProtocolCommand, ProtocolStatus};
@@ -125,6 +125,9 @@ pub struct App {
     pub launch_status: Option<(String, Instant)>,
     /// Selection within the recently-played quick-launch overlay.
     pub quick_launch_state: ListState,
+    /// PICS `config/launch` entries per appid, captured from the library load. Consulted by the
+    /// experimental direct (no-Steam) launch path to resolve a game's executable (v0.4.1).
+    pub app_launch_info: HashMap<u32, Vec<LaunchEntry>>,
 }
 
 /// Per-view loading flags — lets the UI stay interactive while any single view loads.
@@ -202,6 +205,7 @@ impl App {
             config,
             launch_status: None,
             quick_launch_state,
+            app_launch_info: HashMap::new(),
         }
     }
 

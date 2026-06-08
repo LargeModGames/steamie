@@ -92,8 +92,9 @@ fn default_history_retention_days() -> u32 {
     30
 }
 
-/// Game-launch behaviour (v0.4.0 "Launch Day"). Every launch is routed through the Steam client.
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
+/// Game-launch behaviour (v0.4.0 "Launch Day"). Launches are Steam-mediated by default; the
+/// experimental direct path (v0.4.1) starts DRM-free games without waking Steam.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct LaunchConfig {
     /// Explicit Steam executable path; empty/omitted means auto-detect.
     #[serde(default)]
@@ -104,12 +105,39 @@ pub struct LaunchConfig {
     /// If Vapour started Steam, shut it down once the game exits (best-effort).
     #[serde(default)]
     pub kill_steam_on_exit: bool,
+    /// Start Steam quietly (minimized to tray, no window) for Steam-mediated launches. On by
+    /// default so the game appears without the Steam UI; set `false` to show Steam's window.
+    #[serde(default = "default_true")]
+    pub silent: bool,
+    /// Experimental: launch games on the DRM-free list directly, with no Steam client running.
+    /// Off by default — every launch stays Steam-mediated unless this is enabled.
+    #[serde(default)]
+    pub direct_launch: bool,
+    /// Experimental: with `direct_launch`, also try the direct path for installed games that are
+    /// *not* on the DRM-free list. Such games may fail to start (DRM needs Steam). Off by default.
+    #[serde(default)]
+    pub force_direct: bool,
     /// Arguments appended to every launch (whitespace-separated).
     #[serde(default)]
     pub extra_args: String,
     /// Per-game launch arguments, keyed by appid as a string (e.g. `"730" = "-novid"`).
     #[serde(default)]
     pub game_args: HashMap<String, String>,
+}
+
+impl Default for LaunchConfig {
+    fn default() -> Self {
+        Self {
+            steam_path: String::new(),
+            dry_run: false,
+            kill_steam_on_exit: false,
+            silent: true,
+            direct_launch: false,
+            force_direct: false,
+            extra_args: String::new(),
+            game_args: HashMap::new(),
+        }
+    }
 }
 
 impl LaunchConfig {
@@ -131,6 +159,9 @@ impl LaunchConfig {
             steam_path,
             dry_run: self.dry_run,
             kill_steam_on_exit: self.kill_steam_on_exit,
+            silent: self.silent,
+            direct_launch: self.direct_launch,
+            force_direct: self.force_direct,
             args,
         }
     }
@@ -240,6 +271,10 @@ account_name = "alice"
         assert!(config.launch.steam_path.is_empty());
         assert!(!config.launch.dry_run);
         assert!(!config.launch.kill_steam_on_exit);
+        // Silent (Steam hidden) is on by default; the direct path is opt-in.
+        assert!(config.launch.silent);
+        assert!(!config.launch.direct_launch);
+        assert!(!config.launch.force_direct);
         assert!(config.launch.game_args.is_empty());
         Ok(())
     }
@@ -252,6 +287,9 @@ account_name = "alice"
 steam_path = "C:/Steam/steam.exe"
 dry_run = true
 kill_steam_on_exit = true
+silent = false
+direct_launch = true
+force_direct = true
 extra_args = "-silent"
 
 [launch.game_args]
@@ -261,6 +299,9 @@ extra_args = "-silent"
         assert_eq!(config.launch.steam_path, "C:/Steam/steam.exe");
         assert!(config.launch.dry_run);
         assert!(config.launch.kill_steam_on_exit);
+        assert!(!config.launch.silent);
+        assert!(config.launch.direct_launch);
+        assert!(config.launch.force_direct);
         assert_eq!(config.launch.extra_args, "-silent");
         assert_eq!(
             config.launch.game_args.get("730").map(String::as_str),

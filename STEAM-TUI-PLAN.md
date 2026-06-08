@@ -252,9 +252,11 @@ handled by the client we delegate to). Implemented as one sequential PR — the 
 path dep breaks in git worktrees and the feature is a vertical chain over shared TUI files — with
 **zero `vapour-protocol` changes**, since launching is a local process action on the `IoEvent` path.
 
-**STATUS: COMPLETE (dry-run + unit-tested; live launch validated by the user).** No new crates: the
-Steam exe/running-state is read via `reg.exe` on Windows and the filesystem on Linux/macOS; the string
-parsers are pure and unit-tested.
+**STATUS: COMPLETE.** v0.4.0 shipped Steam-mediated launch (dry-run + unit-tested; live launch
+validated by the user). **v0.4.1 then added the direct (no-Steam) path + silent launch** — see the
+checklist below. No new crates in either: the Steam exe/running-state is read via `reg.exe` on Windows
+and the filesystem on Linux/macOS, install metadata via on-disk VDF, and all parsers are pure and
+unit-tested. (v0.4.1 added one `vapour-protocol` change — PICS now surfaces `installdir` + `config/launch`.)
 
 - [x] **Launch a game from the TUI** — `l` on a library row, `Enter`/`l` in game detail. Routes
       `IoEvent::LaunchGame(appid)` → `vapour-core::launcher::launch` off-thread via `spawn_blocking`.
@@ -268,12 +270,21 @@ parsers are pure and unit-tested.
       by `LaunchConfig::options_for`. A `dry_run` mode logs the exact command without spawning.
 - [x] **Recently-played quick-launch bar** — `L` opens an overlay over the library
       (`views/quick_launch.rs`); `Enter` launches the selected recently-played appid.
-- [ ] Detect whether a game uses DRM (crowdsource / PCGamingWiki) — **deferred**: only gates the
-      no-Steam direct-launch path; under Steam-mediated launch it gates nothing.
-- [ ] Non-DRM games: launch directly from the TUI (no Steam client) — **deferred as experimental**
-      (Steamworks init makes no-Steam launch unreliable for most titles).
-- [ ] Proton/Wine prefix wrapping — **deferred**: Steam applies Proton itself for Steam-mediated
-      launches; external prefix wrapping only matters for the direct-launch path.
+- [x] **Detect whether a game uses DRM — done in v0.4.1 via a curated list.** Instead of scraping
+      PCGamingWiki, a contributable repo-root `DRM-FREE-GAMES.md` (embedded via `include_str!`, plus an
+      optional `~/.config/vapour/drm-free.md`) gates the no-Steam path: a game on the list is launched
+      directly, everything else stays Steam-mediated. `vapour-core::drm_free::is_known_drm_free`.
+- [x] **Non-DRM games: launch directly from the TUI (no Steam client) — done in v0.4.1 (experimental,
+      opt-in `[launch] direct_launch`).** Steam never wakes. Exe resolved authoritatively from PICS
+      `config/launch` (new `vapour-protocol` `LaunchEntry`) + on-disk install detection
+      (`vapour-core::steam_apps` parsing `libraryfolders.vdf`/`appmanifest_*.acf` with the new
+      `vapour-core::vdf` text-KV parser). Pure `launcher::plan_launch` gates on installed + DRM-free
+      (or `force_direct`) + an OS-matching launch entry; anything unresolved falls back to silent Steam.
+      Also shipped: **silent launch** (`[launch] silent`, default on) — `steam -silent` keeps the
+      mediated path's Steam in the tray with no window. Live-validated (install detection + direct
+      dry-run) on this machine; end-user live no-Steam launch of a DRM-free title pending.
+- [ ] Proton/Wine prefix wrapping — **still deferred**: Steam applies Proton itself for Steam-mediated
+      launches; external prefix wrapping only matters for the direct-launch path (native-OS exe only for now).
 
 ### v0.5.0 -- "The Bazaar"
 

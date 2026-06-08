@@ -223,29 +223,35 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
         }
 
         IoEvent::LaunchGame(appid) => {
-            // Build launch options from config and resolve a display name for the status line.
-            let (opts, name) = {
+            // Build launch options + gather the game's launch entries (for the direct path), and
+            // resolve a display name for the status line.
+            let (opts, entries, name) = {
                 let a = app.lock().unwrap();
                 let opts = a.config.launch.options_for(appid);
+                let entries = a.app_launch_info.get(&appid).cloned().unwrap_or_default();
                 let name = a
                     .games
                     .iter()
                     .find(|g| g.appid == appid)
                     .map(|g| a.game_display_name(g).to_owned())
                     .unwrap_or_else(|| format!("appid {appid}"));
-                (opts, name)
+                (opts, entries, name)
             };
 
             // Launching spawns a process (and shells out to reg.exe on Windows); keep it off the
             // async worker pool.
-            let result = tokio::task::spawn_blocking(move || vapour_core::launch(appid, &opts)).await;
+            let result =
+                tokio::task::spawn_blocking(move || vapour_core::launch_game(appid, &entries, &opts))
+                    .await;
 
             let mut a = app.lock().unwrap();
             match result {
                 Ok(Ok(outcome)) => {
-                    tracing::info!(target: "launch", appid, "{}", outcome.command_line);
+                    tracing::info!(target: "launch", appid, direct = outcome.direct, "{}", outcome.command_line);
                     let msg = if outcome.dry_run {
                         format!("DRY-RUN: {}", outcome.command_line)
+                    } else if outcome.direct {
+                        format!("▶ Launched {name} (no Steam)")
                     } else {
                         format!("▶ Launched {name}")
                     };
