@@ -17,5 +17,5 @@ tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-toml = "0.8"
+toml = "1.1"
 dirs = "6"
