@@ -2,7 +2,7 @@
 //! (`appmanifest_<appid>.acf`, `libraryfolders.vdf`).
 //!
 //! This is the *text* KeyValues format (`"key" "value"` / `"key" { … }`), not the binary KV
-//! used by PICS (that lives in `vapour-protocol::kv`). It is intentionally tiny: enough to read
+//! used by PICS (that lives in `steam-cm-protocol::kv`). It is intentionally tiny: enough to read
 //! install metadata, no more. Key lookups are case-insensitive (Steam mixes `installdir` and
 //! `StateFlags`). Pure → unit-tested against real captured files.
 

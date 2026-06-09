@@ -37,8 +37,8 @@ steamie is a Cargo workspace with three crates:
 - **`steamie`** — the ratatui terminal UI (produces the `steamie` binary).
 
 The raw Steam connection-manager protocol lives in a **separate** crate,
-[`vapour-protocol`](https://github.com/LargeModGames/vapour-protocol)
-([crates.io](https://crates.io/crates/vapour-protocol)). Protocol-level changes belong in that repo.
+[`steam-cm-protocol`](https://github.com/LargeModGames/steam-cm-protocol)
+([crates.io](https://crates.io/crates/steam-cm-protocol)). Protocol-level changes belong in that repo.
 
 ### Getting set up
 1. Install a recent stable Rust toolchain (`rustup` recommended). steamie requires **Rust 1.85+**

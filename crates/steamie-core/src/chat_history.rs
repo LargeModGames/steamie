@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use vapour_protocol::ChatMessage;
+use steam_cm_protocol::ChatMessage;
 
 const SECONDS_PER_DAY: u64 = 86_400;
 
