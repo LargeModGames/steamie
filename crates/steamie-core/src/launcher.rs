@@ -107,7 +107,7 @@ pub fn launch(appid: u32, opts: &LaunchOptions) -> Result<LaunchOutcome> {
     })
 }
 
-/// Detach a launch command from Vapour's terminal: the spawned process gets null stdio so it can't
+/// Detach a launch command from Steamie's terminal: the spawned process gets null stdio so it can't
 /// paint over the TUI (some games — Factorio — log to stdout), and on Windows it is detached from
 /// our console entirely. Without this, a launched game's console output corrupts the ratatui screen.
 fn detach_io(cmd: &mut Command) -> &mut Command {
@@ -117,7 +117,7 @@ fn detach_io(cmd: &mut Command) -> &mut Command {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        // DETACHED_PROCESS — the child does not inherit/attach Vapour's console.
+        // DETACHED_PROCESS — the child does not inherit/attach Steamie's console.
         const DETACHED_PROCESS: u32 = 0x0000_0008;
         cmd.creation_flags(DETACHED_PROCESS);
     }
@@ -125,7 +125,7 @@ fn detach_io(cmd: &mut Command) -> &mut Command {
 }
 
 /// Build the `(program, args)` for a Steam-mediated launch. Pure → unit-tested. `-silent` keeps
-/// Steam in the tray (no window) when Vapour has to start it.
+/// Steam in the tray (no window) when Steamie has to start it.
 fn build_command(exe: &Path, appid: u32, silent: bool, extra: &[String]) -> (PathBuf, Vec<String>) {
     let mut args = Vec::new();
     if silent {
@@ -560,7 +560,7 @@ mod tests {
     use super::*;
 
     fn temp_steam_exe(tag: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("vapour_test_steam_{tag}"));
+        let p = std::env::temp_dir().join(format!("steamie_test_steam_{tag}"));
         std::fs::write(&p, b"").unwrap();
         p
     }

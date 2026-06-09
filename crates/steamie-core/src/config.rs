@@ -102,7 +102,7 @@ pub struct LaunchConfig {
     /// Log the launch command instead of spawning it (for testing).
     #[serde(default)]
     pub dry_run: bool,
-    /// If Vapour started Steam, shut it down once the game exits (best-effort).
+    /// If Steamie started Steam, shut it down once the game exits (best-effort).
     #[serde(default)]
     pub kill_steam_on_exit: bool,
     /// Start Steam quietly (minimized to tray, no window) for Steam-mediated launches. On by
@@ -191,7 +191,7 @@ impl Config {
 pub fn config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("~/.config"))
-        .join("vapour")
+        .join("steamie")
         .join("config.toml")
 }
 

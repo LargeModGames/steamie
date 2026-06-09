@@ -2,7 +2,7 @@
 //!
 //! The canonical list ships in the repo-root [`DRM-FREE-GAMES.md`](../../../DRM-FREE-GAMES.md) and is
 //! embedded into the binary at build time, so it works offline with no extra files to deploy. An
-//! optional per-user list at `~/.config/vapour/drm-free.md` (same markdown-table format) is merged
+//! optional per-user list at `~/.config/steamie/drm-free.md` (same markdown-table format) is merged
 //! on top. Used by the direct (no-Steam) launch path to decide which games to start without Steam.
 
 use std::collections::HashSet;
@@ -35,7 +35,7 @@ fn appids() -> &'static HashSet<u32> {
 }
 
 fn user_list_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|dir| dir.join("vapour").join("drm-free.md"))
+    dirs::config_dir().map(|dir| dir.join("steamie").join("drm-free.md"))
 }
 
 /// Parse AppIDs from a markdown table: the first numeric cell of each `| … |` row. The header row

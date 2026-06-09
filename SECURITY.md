@@ -1,6 +1,6 @@
 # Security Policy
 
-vapour speaks to Steam's connection-manager protocol on your behalf and handles authentication
+steamie speaks to Steam's connection-manager protocol on your behalf and handles authentication
 sessions, so we take security seriously.
 
 ## Supported Versions
@@ -16,7 +16,7 @@ We maintain security fixes only for the current stable release stream.
 
 - Please report vulnerabilities **privately** via GitHub Security Advisories
   (Security → Report a vulnerability) instead of opening a public issue.
-- Include details that help us reproduce and assess impact: vapour version, OS, terminal,
+- Include details that help us reproduce and assess impact: steamie version, OS, terminal,
   installation method, minimal repro steps, and any relevant logs **with secrets and session
   tokens stripped**.
 - You can expect an acknowledgment within 3 business days and status updates at least weekly until
@@ -25,5 +25,5 @@ We maintain security fixes only for the current stable release stream.
 
 ## A note on credentials
 
-vapour never stores your Steam password. QR sign-in is the default. If you report an issue, never
+steamie never stores your Steam password. QR sign-in is the default. If you report an issue, never
 include account credentials, QR payloads, refresh tokens, or session secrets in the report.

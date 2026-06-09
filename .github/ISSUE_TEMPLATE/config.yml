@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 Discussions
-    url: https://github.com/LargeModGames/vapour/discussions
+    url: https://github.com/LargeModGames/steamie/discussions
     about: Ask questions, share setups, and suggest ideas.
   - name: 🔒 Security reports
-    url: https://github.com/LargeModGames/vapour/blob/main/SECURITY.md
+    url: https://github.com/LargeModGames/steamie/blob/main/SECURITY.md
     about: Please report vulnerabilities privately per our security policy.

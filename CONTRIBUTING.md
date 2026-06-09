@@ -1,19 +1,19 @@
-# Contributing to vapour
+# Contributing to steamie
 
-Thanks for your interest in vapour! 🎮 We welcome all kinds of contributions — code, docs,
+Thanks for your interest in steamie! 🎮 We welcome all kinds of contributions — code, docs,
 bug reports, and additions to the DRM-free games list.
 
 ## Ways to Contribute
 
 ### 🐛 Report Bugs
-Found something broken? [Open an issue](https://github.com/LargeModGames/vapour/issues/new/choose) with:
+Found something broken? [Open an issue](https://github.com/LargeModGames/steamie/issues/new/choose) with:
 - What you expected vs what happened
 - Steps to reproduce
-- Your OS, terminal, and vapour version (`vapour --version`)
+- Your OS, terminal, and steamie version (`steamie --version`)
 
 ### 💡 Suggest Features
-Have an idea? Start a [Discussion](https://github.com/LargeModGames/vapour/discussions) or open an
-issue. We love hearing what would make vapour better for you.
+Have an idea? Start a [Discussion](https://github.com/LargeModGames/steamie/discussions) or open an
+issue. We love hearing what would make steamie better for you.
 
 ### 🎯 Add Games to the DRM-Free List
 [`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
@@ -30,27 +30,27 @@ Fix typos, clarify setup steps, or expand the README — all welcome.
 ## Code Contributions
 
 ### Project layout
-vapour is a Cargo workspace with three crates:
+steamie is a Cargo workspace with three crates:
 
-- **`vapour-api`** — Steam Web API / Store API HTTP client.
-- **`vapour-core`** — config, session, caching, launcher, local chat history.
-- **`vapour-tui`** — the ratatui terminal UI (produces the `vapour` binary).
+- **`steamie-api`** — Steam Web API / Store API HTTP client.
+- **`steamie-core`** — config, session, caching, launcher, local chat history.
+- **`steamie`** — the ratatui terminal UI (produces the `steamie` binary).
 
 The raw Steam connection-manager protocol lives in a **separate** crate,
 [`vapour-protocol`](https://github.com/LargeModGames/vapour-protocol)
 ([crates.io](https://crates.io/crates/vapour-protocol)). Protocol-level changes belong in that repo.
 
 ### Getting set up
-1. Install a recent stable Rust toolchain (`rustup` recommended). vapour requires **Rust 1.85+**
+1. Install a recent stable Rust toolchain (`rustup` recommended). steamie requires **Rust 1.85+**
    (edition 2024).
 2. No special system libraries are required — networking uses `rustls` and notifications use `zbus`,
    so there's no OpenSSL, X11, or audio dependency to install.
 3. Clone your fork and create a topic branch from `main`.
 
 ```bash
-git clone https://github.com/LargeModGames/vapour.git
-cd vapour
-cargo run --bin vapour
+git clone https://github.com/LargeModGames/steamie.git
+cd steamie
+cargo run --bin steamie
 ```
 
 ### Before opening a PR
@@ -75,4 +75,4 @@ cargo test --workspace
 Be kind and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Questions?
-Start a [Discussion](https://github.com/LargeModGames/vapour/discussions) or ask in an issue — happy to help!
+Start a [Discussion](https://github.com/LargeModGames/steamie/discussions) or ask in an issue — happy to help!

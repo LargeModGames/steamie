@@ -1,4 +1,4 @@
-use vapour_api::{Game, NewsItem, PlayerSummary, WishlistItem};
+use steamie_api::{Game, NewsItem, PlayerSummary, WishlistItem};
 
 #[derive(Debug, Default)]
 pub struct Cache {

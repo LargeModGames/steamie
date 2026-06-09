@@ -24,7 +24,7 @@ If applicable, add a screenshot or terminal recording to help explain the proble
 **Environment (please complete the following information):**
  - OS: [e.g. Arch Linux, Windows 11, macOS 14]
  - Terminal: [e.g. kitty, wezterm, gnome-terminal, Windows Terminal]
- - vapour version: [`vapour --version`]
+ - steamie version: [`steamie --version`]
  - Auth method: [QR / credentials]
 
 **Logs**

@@ -11,14 +11,14 @@ mod views;
 
 use clap::Parser;
 use std::{fs, path::PathBuf};
+use steamie_core::Config;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-use vapour_core::Config;
 
 #[derive(Parser)]
-#[command(name = "vapour", version, about = "A terminal Steam client")]
+#[command(name = "steamie", version, about = "A terminal Steam client")]
 struct Cli {
-    /// Path to config file (default: ~/.config/vapour/config.toml)
+    /// Path to config file (default: ~/.config/steamie/config.toml)
     #[arg(short, long)]
     config: Option<PathBuf>,
 }
@@ -42,7 +42,7 @@ async fn main() {
     };
 
     if let Err(e) = runner::run(config).await {
-        eprintln!("vapour: {e}");
+        eprintln!("steamie: {e}");
         std::process::exit(1);
     }
 }
@@ -51,10 +51,10 @@ fn init_tracing() -> Option<tracing_appender::non_blocking::WorkerGuard> {
     let state_dir = dirs::state_dir()
         .or_else(dirs::config_dir)
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?
-        .join("vapour");
+        .join("steamie");
     fs::create_dir_all(&state_dir).ok()?;
 
-    let file_appender = tracing_appender::rolling::never(state_dir, "vapour.log");
+    let file_appender = tracing_appender::rolling::never(state_dir, "steamie.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::builder()
