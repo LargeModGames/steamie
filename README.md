@@ -156,7 +156,7 @@ appears, and DRM/presence work normally. Set `silent = false` if you'd rather se
 **Experimental — launch with no Steam at all.** Games that are confirmed to run without the Steam
 client (DRM-free titles) can be launched directly from their executable, so Steam never wakes. Enable
 it with `direct_launch = true`; a game is eligible when it's on the community
-[`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) list and installed. Anything else falls back to the silent
+[`DRM-FREE-GAMES.md`](crates/steamie-core/DRM-FREE-GAMES.md) list and installed. Anything else falls back to the silent
 Steam launch above. The status line shows `▶ Launched X (no Steam)` when it goes direct.
 
 `kill_steam_on_exit` only ever shuts down a Steam that steamie itself started, and is best-effort
@@ -165,7 +165,7 @@ command a launch would run without starting anything.
 
 ### Contributing to the DRM-free list
 
-[`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
+[`DRM-FREE-GAMES.md`](crates/steamie-core/DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
 **Steam fully closed**. To add a game: quit Steam, confirm the game still launches from its
 `steamapps/common/<game>/` executable, then add a row with its AppID and name and open a PR. You can
 also keep a private list at `~/.config/steamie/drm-free.md` (same format).

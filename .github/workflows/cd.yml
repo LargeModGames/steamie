@@ -359,19 +359,14 @@ jobs:
       - name: Submit to winget-pkgs
         shell: pwsh
         run: |
-          $ReleaseInfo = Invoke-RestMethod `
-            -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" `
-            -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
-
+          # The release asset name is deterministic, so build the URL directly
+          # instead of querying the GitHub API — the API can briefly return the
+          # release with an empty assets array right after upload (eventual
+          # consistency), which previously made this step fail spuriously.
           $Version = "${{ github.ref_name }}" -replace '^v'
-          $Urls = $ReleaseInfo.assets.Where({ $_.name -match '-windows-x86_64\.zip$' }).browser_download_url -join ' '
+          $Url = "${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/steamie-windows-x86_64.zip"
 
-          if ([string]::IsNullOrWhiteSpace($Urls)) {
-            Write-Error "No Windows x86_64 zip release asset found"
-            exit 1
-          }
-
-          komac update 'LargeModGames.steamie' --version "$Version" --submit --urls $Urls
+          komac update 'LargeModGames.steamie' --version "$Version" --submit --urls $Url
         env:
           GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
           KOMAC_FORK_OWNER: LargeModGames

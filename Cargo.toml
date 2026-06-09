@@ -7,7 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/LargeModGames/steamie"
@@ -19,8 +19,8 @@ categories = ["command-line-utilities", "games"]
 
 [workspace.dependencies]
 # Internal crates carry both a path (for local builds) and a version (for crates.io publish).
-steamie-api = { path = "crates/steamie-api", version = "0.4.1" }
-steamie-core = { path = "crates/steamie-core", version = "0.4.1" }
+steamie-api = { path = "crates/steamie-api", version = "0.4.2" }
+steamie-core = { path = "crates/steamie-core", version = "0.4.2" }
 steam-cm-protocol = "0.4.1"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
