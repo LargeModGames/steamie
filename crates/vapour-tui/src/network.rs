@@ -161,7 +161,7 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
                 }
             }
 
-            all_news.sort_by(|a, b| b.date.cmp(&a.date));
+            all_news.sort_by_key(|n| std::cmp::Reverse(n.date));
             all_news.truncate(60);
 
             let mut a = app.lock().unwrap();

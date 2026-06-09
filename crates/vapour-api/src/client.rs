@@ -76,11 +76,10 @@ impl SteamApiClient {
             .await
             .context("parse GetOwnedGames")?;
 
-        let games: Vec<Game> =
+        let mut games: Vec<Game> =
             serde_json::from_value(resp["response"]["games"].clone()).unwrap_or_default();
 
-        let mut games = games;
-        games.sort_by(|a, b| b.playtime_forever.cmp(&a.playtime_forever));
+        games.sort_by_key(|g| std::cmp::Reverse(g.playtime_forever));
         Ok(games)
     }
 
