@@ -16,10 +16,8 @@ pub fn handle(app: &mut App, key: Key) {
                 app.protocol_status = ProtocolStatus::Disconnected;
                 app.protocol_input.clear();
             }
-            Key::Char(c) => {
-                if !c.is_control() {
-                    app.protocol_input.push(c);
-                }
+            Key::Char(c) if !c.is_control() => {
+                app.protocol_input.push(c);
             }
             _ => {}
         },
@@ -31,11 +29,9 @@ pub fn handle(app: &mut App, key: Key) {
                 app.protocol_status = ProtocolStatus::Disconnected;
             }
         }
-        ProtocolStatus::AwaitingQrScan { .. } | ProtocolStatus::Connecting => {
-            if key == Key::Esc {
-                let _ = app.protocol_tx.send(ProtocolCommand::Cancel);
-                app.protocol_status = ProtocolStatus::Disconnected;
-            }
+        ProtocolStatus::AwaitingQrScan { .. } | ProtocolStatus::Connecting if key == Key::Esc => {
+            let _ = app.protocol_tx.send(ProtocolCommand::Cancel);
+            app.protocol_status = ProtocolStatus::Disconnected;
         }
         _ => {}
     }

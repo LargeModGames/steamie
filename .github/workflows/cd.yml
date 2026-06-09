@@ -1,0 +1,470 @@
+name: Continuous Deployment
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: vapour
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_prefix: linux-x86_64
+            binary_postfix: ""
+          - os: macos-15-intel # Intel runner for x86_64
+            target: x86_64-apple-darwin
+            artifact_prefix: macos-x86_64
+            binary_postfix: ""
+          - os: macos-latest # Apple Silicon runner for aarch64
+            target: aarch64-apple-darwin
+            artifact_prefix: macos-aarch64
+            binary_postfix: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_prefix: windows-x86_64
+            binary_postfix: ".exe"
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-deb
+        if: runner.os == 'Linux'
+        run: cargo install cargo-deb --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }} -p vapour-tui
+
+      - name: Package binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          BINARY=${{ env.BINARY_NAME }}${{ matrix.binary_postfix }}
+          strip "$BINARY" || true
+          RELEASE_NAME=${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}
+          tar czvf ../../../$RELEASE_NAME.tar.gz "$BINARY"
+          cd ../../..
+          shasum -a 256 $RELEASE_NAME.tar.gz > $RELEASE_NAME.tar.gz.sha256
+
+      - name: Package Debian (.deb)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        shell: bash
+        run: |
+          cargo deb -p vapour-tui --no-build --target ${{ matrix.target }}
+          DEB_PATH=$(ls target/${{ matrix.target }}/debian/*.deb)
+          cp "$DEB_PATH" .
+          sha256sum "$(basename "$DEB_PATH")" > "$(basename "$DEB_PATH").sha256"
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          BINARY=${{ env.BINARY_NAME }}${{ matrix.binary_postfix }}
+          RELEASE_NAME=${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}
+          7z a ../../../$RELEASE_NAME.zip "$BINARY"
+          cd ../../..
+          certutil -hashfile $RELEASE_NAME.zip sha256 | grep -E [A-Fa-f0-9]{64} > $RELEASE_NAME.zip.sha256
+
+      - name: Upload artifact (Unix)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}
+          path: |
+            ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}.tar.gz
+            ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}.tar.gz.sha256
+
+      - name: Upload artifact (Linux .deb)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}-deb
+          path: |
+            *.deb
+            *.deb.sha256
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}
+          path: |
+            ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}.zip
+            ${{ env.BINARY_NAME }}-${{ matrix.artifact_prefix }}.zip.sha256
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Read annotated tag message
+        id: tag_message
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          TAG_MESSAGE=$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)')
+          {
+            echo "message<<EOF"
+            echo "$TAG_MESSAGE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ${{ steps.tag_message.outputs.message }}
+
+            ## Downloads
+
+            - On **Windows 10/11 (64-bit)** → `vapour-windows-x86_64.zip`
+            - On **Linux (Ubuntu, Arch, Fedora, etc.)** → `vapour-linux-x86_64.tar.gz`
+            - On **macOS with Intel CPU** → `vapour-macos-x86_64.tar.gz`
+            - On **macOS with Apple Silicon (M1/M2/M3+)** → `vapour-macos-aarch64.tar.gz`
+
+            Checksums (`.sha256`) are optional and only needed if you want to verify the download.
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-cargo:
+    name: Publish to crates.io
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          publish() {
+            crate="$1"
+            for attempt in 1 2 3 4 5 6; do
+              if cargo publish -p "$crate" --locked; then
+                echo "published $crate"
+                return 0
+              fi
+              echo "publish $crate attempt $attempt failed; retrying in 30s (index propagation)…"
+              sleep 30
+            done
+            echo "::error::failed to publish $crate"
+            return 1
+          }
+          publish vapour-api
+          publish vapour-core
+          publish vapour-tui
+
+  publish-aur:
+    name: Publish to AUR
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          TARBALL_URL="https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz"
+          SHA256=$(curl -sL "$TARBALL_URL" | sha256sum | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH for AUR
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          git config --global user.name "${{ secrets.AUR_USERNAME }}"
+          git config --global user.email "${{ secrets.AUR_EMAIL }}"
+
+      - name: Clone AUR repository
+        run: |
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/vapour.git aur
+
+      - name: Update PKGBUILD
+        working-directory: aur
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=${{ steps.version.outputs.version }}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+          sed -i "s/^sha256sums=.*/sha256sums=('${{ steps.sha256.outputs.sha256 }}')/" PKGBUILD
+          if ! grep -q "CARGO_PROFILE_RELEASE_LTO=false" PKGBUILD; then
+            sed -i "/^[[:space:]]*build() {[[:space:]]*$/a\\  export CARGO_PROFILE_RELEASE_LTO=false" PKGBUILD
+          fi
+
+      - name: Generate .SRCINFO
+        working-directory: aur
+        run: |
+          docker run --rm -v $PWD:/pkg archlinux:latest /bin/bash -c "
+            pacman -Syu --noconfirm --needed base-devel &&
+            useradd -m builder &&
+            chown -R builder:builder /pkg &&
+            cd /pkg &&
+            su builder -c 'makepkg --printsrcinfo' > .SRCINFO
+          "
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: Commit and push to AUR
+        working-directory: aur
+        run: |
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${{ steps.version.outputs.version }}"
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git push
+
+  publish-aur-bin:
+    name: Publish to AUR (vapour-bin)
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate SHA256 checksums
+        id: sha256
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BINARY_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-linux-x86_64.tar.gz"
+          SHA256_BINARY=$(curl -sL "$BINARY_URL" | sha256sum | awk '{print $1}')
+          echo "sha256_binary=$SHA256_BINARY" >> $GITHUB_OUTPUT
+          LICENSE_URL="https://raw.githubusercontent.com/${{ github.repository }}/v${VERSION}/LICENSE"
+          SHA256_LICENSE=$(curl -sL "$LICENSE_URL" | sha256sum | awk '{print $1}')
+          echo "sha256_license=$SHA256_LICENSE" >> $GITHUB_OUTPUT
+          README_URL="https://raw.githubusercontent.com/${{ github.repository }}/v${VERSION}/README.md"
+          SHA256_README=$(curl -sL "$README_URL" | sha256sum | awk '{print $1}')
+          echo "sha256_readme=$SHA256_README" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH for AUR
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          git config --global user.name "${{ secrets.AUR_USERNAME }}"
+          git config --global user.email "${{ secrets.AUR_EMAIL }}"
+
+      - name: Clone AUR repository
+        run: |
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/vapour-bin.git aur-bin
+
+      - name: Update PKGBUILD
+        working-directory: aur-bin
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=${{ steps.version.outputs.version }}/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+          sed -i '/^sha256sums=/d' PKGBUILD
+          sed -i '/^sha256sums_x86_64=/d' PKGBUILD
+          sed -i "/^[[:space:]]*'[a-f0-9]\{64\}')/d" PKGBUILD
+          SHA_L="${{ steps.sha256.outputs.sha256_license }}"
+          SHA_R="${{ steps.sha256.outputs.sha256_readme }}"
+          SHA_B="${{ steps.sha256.outputs.sha256_binary }}"
+          sed -i "/^package()/i sha256sums=('${SHA_L}' '${SHA_R}')\nsha256sums_x86_64=('${SHA_B}')" PKGBUILD
+
+      - name: Generate .SRCINFO
+        working-directory: aur-bin
+        run: |
+          docker run --rm -v $PWD:/pkg archlinux:latest /bin/bash -c "
+            pacman -Syu --noconfirm --needed base-devel &&
+            useradd -m builder &&
+            chown -R builder:builder /pkg &&
+            cd /pkg &&
+            su builder -c 'makepkg --printsrcinfo' > .SRCINFO
+          "
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: Commit and push to AUR
+        working-directory: aur-bin
+        run: |
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${{ steps.version.outputs.version }}"
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git push
+
+  publish-winget:
+    name: Publish to winget
+    needs: release
+    runs-on: windows-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Install komac
+        shell: pwsh
+        run: cargo binstall komac -y
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Submit to winget-pkgs
+        shell: pwsh
+        run: |
+          $ReleaseInfo = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" `
+            -Headers @{ Authorization = "token $env:GITHUB_TOKEN" }
+
+          $Version = "${{ github.ref_name }}" -replace '^v'
+          $Urls = $ReleaseInfo.assets.Where({ $_.name -match '-windows-x86_64\.zip$' }).browser_download_url -join ' '
+
+          if ([string]::IsNullOrWhiteSpace($Urls)) {
+            Write-Error "No Windows x86_64 zip release asset found"
+            exit 1
+          }
+
+          komac update 'LargeModGames.vapour' --version "$Version" --submit --urls $Urls
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          KOMAC_FORK_OWNER: LargeModGames
+          KOMAC_CREATED_WITH: vapour CD workflow
+          KOMAC_CREATED_WITH_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  publish-homebrew:
+    name: Publish to Homebrew
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          echo "version=$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_OUTPUT
+
+      - name: Calculate SHA256 checksums
+        id: sha256
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          AARCH64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-macos-aarch64.tar.gz"
+          echo "sha256_aarch64=$(curl -sL "$AARCH64_URL" | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
+          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-macos-x86_64.tar.gz"
+          echo "sha256_x86_64=$(curl -sL "$X86_64_URL" | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH for Homebrew tap
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOMEBREW_TAP_SSH_KEY }}" > ~/.ssh/homebrew_tap
+          chmod 600 ~/.ssh/homebrew_tap
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone Homebrew tap repository
+        run: |
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/homebrew_tap -o IdentitiesOnly=yes' \
+            git clone git@github.com:LargeModGames/homebrew-vapour.git homebrew-tap
+
+      - name: Update formula
+        working-directory: homebrew-tap
+        run: |
+          mkdir -p Formula
+          cat > Formula/vapour.rb << 'FORMULA_EOF'
+          # typed: false
+          # frozen_string_literal: true
+
+          # This formula is automatically updated by the CD workflow on each release.
+          # Manual changes will be overwritten.
+
+          class Vapour < Formula
+            desc "Terminal-native Steam client written in Rust"
+            homepage "https://github.com/LargeModGames/vapour"
+            version "${{ steps.version.outputs.version }}"
+            license "MIT"
+
+            depends_on :macos
+
+            on_arm do
+              url "https://github.com/LargeModGames/vapour/releases/download/v#{version}/vapour-macos-aarch64.tar.gz"
+              sha256 "${{ steps.sha256.outputs.sha256_aarch64 }}"
+            end
+
+            on_intel do
+              url "https://github.com/LargeModGames/vapour/releases/download/v#{version}/vapour-macos-x86_64.tar.gz"
+              sha256 "${{ steps.sha256.outputs.sha256_x86_64 }}"
+            end
+
+            def install
+              bin.install "vapour"
+            end
+
+            def caveats
+              <<~EOS
+                vapour talks to Steam's connection-manager protocol. On first run, sign in with a
+                QR code (default) or your Steam credentials.
+
+                vapour is unofficial and not affiliated with Valve or Steam.
+                More info: https://github.com/LargeModGames/vapour
+              EOS
+            end
+
+            test do
+              assert_match "vapour", shell_output("#{bin}/vapour --version")
+            end
+          end
+          FORMULA_EOF
+
+      - name: Commit and push to Homebrew tap
+        working-directory: homebrew-tap
+        run: |
+          git add Formula/vapour.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update vapour to ${{ steps.version.outputs.version }}"
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/homebrew_tap -o IdentitiesOnly=yes' git push

@@ -2,10 +2,13 @@
 name = "vapour-api"
 version.workspace = true
 edition.workspace = true
-description = "Steam Web API and Store API client"
+description = "Steam Web API and Store API client (part of vapour)"
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 tokio = { workspace = true }

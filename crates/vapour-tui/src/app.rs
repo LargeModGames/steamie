@@ -66,7 +66,8 @@ pub struct Conversation {
 
 impl Conversation {
     pub fn is_typing(&self) -> bool {
-        self.peer_typing_until.is_some_and(|until| Instant::now() < until)
+        self.peer_typing_until
+            .is_some_and(|until| Instant::now() < until)
     }
 }
 
@@ -249,9 +250,9 @@ impl App {
 
     /// The launch message while it is still fresh (~6s), for the status bar.
     pub fn launch_status_message(&self) -> Option<&str> {
-        self.launch_status.as_ref().and_then(|(msg, at)| {
-            (at.elapsed() < Duration::from_secs(6)).then_some(msg.as_str())
-        })
+        self.launch_status
+            .as_ref()
+            .and_then(|(msg, at)| (at.elapsed() < Duration::from_secs(6)).then_some(msg.as_str()))
     }
 
     /// AppID of the currently-highlighted library row, if any.
@@ -293,11 +294,12 @@ impl App {
 
     /// Open the recently-played quick-launch overlay over the current view.
     pub fn open_quick_launch(&mut self) {
-        self.quick_launch_state.select(if self.recently_played_appids.is_empty() {
-            None
-        } else {
-            Some(0)
-        });
+        self.quick_launch_state
+            .select(if self.recently_played_appids.is_empty() {
+                None
+            } else {
+                Some(0)
+            });
         self.navigation_stack
             .last_mut()
             .expect("never empty")

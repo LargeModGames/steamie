@@ -276,7 +276,14 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
         for word in raw.split_whitespace() {
             let word_len = word.chars().count();
             if current_len == 0 {
-                push_word(&mut lines, &mut current, &mut current_len, word, word_len, width);
+                push_word(
+                    &mut lines,
+                    &mut current,
+                    &mut current_len,
+                    word,
+                    word_len,
+                    width,
+                );
             } else if current_len + 1 + word_len <= width {
                 current.push(' ');
                 current.push_str(word);
@@ -284,7 +291,14 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
             } else {
                 lines.push(std::mem::take(&mut current));
                 current_len = 0;
-                push_word(&mut lines, &mut current, &mut current_len, word, word_len, width);
+                push_word(
+                    &mut lines,
+                    &mut current,
+                    &mut current_len,
+                    word,
+                    word_len,
+                    width,
+                );
             }
         }
         lines.push(current);

@@ -10,8 +10,10 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 /// The repo-root list, baked in at compile time.
-const EMBEDDED_LIST: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../DRM-FREE-GAMES.md"));
+const EMBEDDED_LIST: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../DRM-FREE-GAMES.md"
+));
 
 static APPIDS: OnceLock<HashSet<u32>> = OnceLock::new();
 

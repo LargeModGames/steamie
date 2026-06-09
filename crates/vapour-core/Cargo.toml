@@ -2,13 +2,16 @@
 name = "vapour-core"
 version.workspace = true
 edition.workspace = true
-description = "Config, session, and cache for Vapour"
+description = "Config, session, cache, and launcher for vapour"
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-vapour-api = { path = "../vapour-api" }
+vapour-api = { workspace = true }
 vapour-protocol = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

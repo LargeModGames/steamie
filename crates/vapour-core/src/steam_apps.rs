@@ -145,9 +145,13 @@ mod tests {
         assert_eq!(app.installdir, "Sid Meier's Civilization VII");
         assert_eq!(app.state_flags, 4);
         assert!(app.is_fully_installed());
+        // Build the expectation with `join` so the test is independent of the
+        // host path separator (the literal `\` form only matches on Windows).
         assert_eq!(
             app.install_path(),
-            PathBuf::from(r"E:\Games\Steam\steamapps\common\Sid Meier's Civilization VII")
+            lib.join("steamapps")
+                .join("common")
+                .join("Sid Meier's Civilization VII")
         );
     }
 

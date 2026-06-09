@@ -175,7 +175,8 @@ impl<'a> Lexer<'a> {
         {
             self.pos += 1;
         }
-        (self.pos > start).then(|| String::from_utf8_lossy(&self.input[start..self.pos]).into_owned())
+        (self.pos > start)
+            .then(|| String::from_utf8_lossy(&self.input[start..self.pos]).into_owned())
     }
 }
 
@@ -227,7 +228,10 @@ mod tests {
         assert_eq!(state.str("name"), Some("Sid Meier's Civilization VII"));
         // Case-insensitive lookup of the mixed-case key.
         assert_eq!(state.str("stateflags"), Some("4"));
-        assert_eq!(state.str("installdir"), Some("Sid Meier's Civilization VII"));
+        assert_eq!(
+            state.str("installdir"),
+            Some("Sid Meier's Civilization VII")
+        );
     }
 
     #[test]
