@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Tabs},
 };
-use vapour_protocol::PersonaState;
+use steam_cm_protocol::PersonaState;
 
 use crate::app::App;
 use crate::protocol::{ProtocolGuardKind, ProtocolStatus};

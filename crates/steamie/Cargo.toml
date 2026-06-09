@@ -17,7 +17,7 @@ path = "src/main.rs"
 [dependencies]
 steamie-core = { workspace = true }
 steamie-api = { workspace = true }
-vapour-protocol = { workspace = true }
+steam-cm-protocol = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 ratatui = { version = "0.30", features = ["crossterm"] }

@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+use steam_cm_protocol::RunCommand;
 use steamie_api::SteamApiClient;
 use tokio::task::JoinSet;
-use vapour_protocol::RunCommand;
 
 use crate::app::App;
 use crate::io_event::IoEvent;

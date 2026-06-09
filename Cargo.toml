@@ -21,7 +21,7 @@ categories = ["command-line-utilities", "games"]
 # Internal crates carry both a path (for local builds) and a version (for crates.io publish).
 steamie-api = { path = "crates/steamie-api", version = "0.4.1" }
 steamie-core = { path = "crates/steamie-core", version = "0.4.1" }
-vapour-protocol = "0.4.0"
+steam-cm-protocol = "0.4.1"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

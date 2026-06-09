@@ -3,10 +3,10 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use ratatui::widgets::ListState;
+use steam_cm_protocol::{ChatMessage, LaunchEntry, Persona, PersonaState, RunCommand};
 use steamie_api::{Achievement, AppDetails, Game, NewsItem, PlayerSummary, WishlistItem};
 use steamie_core::{ChatHistory, Config};
 use tokio::sync::mpsc as tokio_mpsc;
-use vapour_protocol::{ChatMessage, LaunchEntry, Persona, PersonaState, RunCommand};
 
 use crate::io_event::IoEvent;
 use crate::protocol::{ProtocolCommand, ProtocolStatus};

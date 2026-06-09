@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
-use vapour_protocol::{ChatMessage, PersonaState};
+use steam_cm_protocol::{ChatMessage, PersonaState};
 
 use crate::app::App;
 use crate::routes::ActiveBlock;

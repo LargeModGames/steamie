@@ -7,8 +7,8 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem},
 };
+use steam_cm_protocol::{Persona, PersonaState};
 use steamie_api::Game;
-use vapour_protocol::{Persona, PersonaState};
 
 use crate::app::App;
 use crate::protocol::ProtocolStatus;

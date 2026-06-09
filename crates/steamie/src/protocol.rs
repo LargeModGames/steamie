@@ -1,15 +1,15 @@
 use std::sync::{Arc, Mutex};
 
 use crate::io_event::IoEvent;
+use steam_cm_protocol::{
+    AuthEvent, AuthMethod, ChatMessage, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn,
+    Persona, RunCommand,
+};
 use steamie_api::{Achievement, Game};
 use steamie_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use tokio::{
     sync::mpsc,
     time::{Duration, sleep},
-};
-use vapour_protocol::{
-    AuthEvent, AuthMethod, ChatMessage, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn,
-    Persona, RunCommand,
 };
 
 use crate::app::App;

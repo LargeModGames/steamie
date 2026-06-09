@@ -15,7 +15,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
-use vapour_protocol::LaunchEntry;
+use steam_cm_protocol::LaunchEntry;
 
 use crate::steam_apps::InstalledApp;
 

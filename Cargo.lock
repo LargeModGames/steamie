@@ -2923,6 +2923,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "steam-cm-protocol"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f02f085a5336b9d075879adfe69e42487b185130b0f287064c1d0241e9bbecce"
+dependencies = [
+ "base64",
+ "bytes",
+ "flate2",
+ "futures-util",
+ "prost",
+ "prost-build",
+ "protox",
+ "rand 0.8.6",
+ "reqwest",
+ "rsa",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
 name = "steamie"
 version = "0.4.1"
 dependencies = [
@@ -2935,13 +2959,13 @@ dependencies = [
  "qrcode",
  "ratatui",
  "rpassword",
+ "steam-cm-protocol",
  "steamie-api",
  "steamie-core",
  "tokio",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "vapour-protocol",
 ]
 
 [[package]]
@@ -2963,10 +2987,10 @@ dependencies = [
  "dirs",
  "serde",
  "serde_json",
+ "steam-cm-protocol",
  "steamie-api",
  "tokio",
  "toml",
- "vapour-protocol",
 ]
 
 [[package]]
@@ -3632,30 +3656,6 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
-
-[[package]]
-name = "vapour-protocol"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c29fbf519d291d29d6fc76090db3b44edfad7c3bf38ab475f04789ec876e30d"
-dependencies = [
- "base64",
- "bytes",
- "flate2",
- "futures-util",
- "prost",
- "prost-build",
- "protox",
- "rand 0.8.6",
- "reqwest",
- "rsa",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-tungstenite",
- "tracing",
-]
 
 [[package]]
 name = "version_check"

@@ -192,8 +192,8 @@ steamie is a Cargo workspace with three crates:
 - **`steamie`** — the ratatui terminal UI (produces the `steamie` binary).
 
 The raw Steam connection-manager protocol (WebSocket connection, auth, friends, service calls) lives
-in a **separate** crate, [**vapour-protocol**](https://github.com/LargeModGames/vapour-protocol)
-([crates.io](https://crates.io/crates/vapour-protocol)).
+in a **separate** crate, [**steam-cm-protocol**](https://github.com/LargeModGames/steam-cm-protocol)
+([crates.io](https://crates.io/crates/steam-cm-protocol)).
 
 ## Development
 

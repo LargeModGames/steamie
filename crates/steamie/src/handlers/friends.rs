@@ -1,4 +1,4 @@
-use vapour_protocol::{PersonaState, RunCommand};
+use steam_cm_protocol::{PersonaState, RunCommand};
 
 use crate::app::App;
 use crate::event::Key;

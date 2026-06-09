@@ -1,6 +1,6 @@
 use anyhow::Result;
+use steam_cm_protocol::SteamClient;
 use steamie_api::SteamApiClient;
-use vapour_protocol::SteamClient;
 
 use crate::{
     auth::AuthState,
