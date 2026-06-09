@@ -71,7 +71,7 @@ This is a Cargo workspace with three crates:
 - **`vapour-core`** — Config loading (`Config`), session management, and local caching. Bridges `vapour-api` and `vapour-protocol` with the TUI. Config is read from `~/.config/vapour/config.toml` via `dirs` when present.
 - **`vapour-tui`** — The ratatui terminal UI binary (`vapour`). Owns all rendering, input handling, and application state.
 
-`vapour-protocol` is a **separate repository** that implements the raw Steam CM protocol (WebSocket connection, auth, friends, service method calls). `vapour-core` has a path dependency pointing to `../../../vapour-protocol`.
+`vapour-protocol` is a **separate crate** ([crates.io](https://crates.io/crates/vapour-protocol), [repo](https://github.com/LargeModGames/vapour-protocol)) that implements the raw Steam CM protocol (WebSocket connection, auth, friends, service method calls). `vapour-core` and `vapour-tui` depend on the published crate (`vapour-protocol = "0.4.0"`, centralized in the workspace `[workspace.dependencies]`).
 
 ### TUI threading model
 
