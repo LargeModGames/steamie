@@ -52,9 +52,8 @@ impl ChatHistory {
 
     /// Persist a conversation, pruning to the retention window first.
     pub fn save(&self, steamid: u64, messages: &[ChatMessage]) -> Result<()> {
-        fs::create_dir_all(&self.dir).with_context(|| {
-            format!("could not create chat history dir {}", self.dir.display())
-        })?;
+        fs::create_dir_all(&self.dir)
+            .with_context(|| format!("could not create chat history dir {}", self.dir.display()))?;
         let kept = prune(messages, self.retention_days, now_unix());
         let path = self.path(steamid);
         let raw = serde_json::to_string(&kept).context("could not serialize chat history")?;
@@ -88,7 +87,11 @@ pub fn merge(
         }
     }
     if added {
-        existing.sort_by(|a, b| a.timestamp.cmp(&b.timestamp).then(a.ordinal.cmp(&b.ordinal)));
+        existing.sort_by(|a, b| {
+            a.timestamp
+                .cmp(&b.timestamp)
+                .then(a.ordinal.cmp(&b.ordinal))
+        });
     }
     added
 }
@@ -142,7 +145,11 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("time")
             .as_nanos();
-        std::env::temp_dir().join(format!("vapour-chat-tests-{}-{}", std::process::id(), nanos))
+        std::env::temp_dir().join(format!(
+            "vapour-chat-tests-{}-{}",
+            std::process::id(),
+            nanos
+        ))
     }
 
     #[test]

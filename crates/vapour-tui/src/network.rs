@@ -240,9 +240,10 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
 
             // Launching spawns a process (and shells out to reg.exe on Windows); keep it off the
             // async worker pool.
-            let result =
-                tokio::task::spawn_blocking(move || vapour_core::launch_game(appid, &entries, &opts))
-                    .await;
+            let result = tokio::task::spawn_blocking(move || {
+                vapour_core::launch_game(appid, &entries, &opts)
+            })
+            .await;
 
             let mut a = app.lock().unwrap();
             match result {

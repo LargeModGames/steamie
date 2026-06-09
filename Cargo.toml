@@ -11,10 +11,16 @@ version = "0.4.1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/LargeModGames/vapour"
+homepage = "https://github.com/LargeModGames/vapour"
 rust-version = "1.85"
 authors = ["LargeModGames"]
+keywords = ["steam", "tui", "terminal", "ratatui", "gaming"]
+categories = ["command-line-utilities", "games"]
 
 [workspace.dependencies]
+# Internal crates carry both a path (for local builds) and a version (for crates.io publish).
+vapour-api = { path = "crates/vapour-api", version = "0.4.1" }
+vapour-core = { path = "crates/vapour-core", version = "0.4.1" }
 vapour-protocol = "0.4.0"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

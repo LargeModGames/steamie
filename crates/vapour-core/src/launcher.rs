@@ -57,7 +57,11 @@ pub struct LaunchOutcome {
 ///
 /// `entries` are the app's PICS `config/launch` options (from the library load); they are only
 /// consulted on the direct path. Returns quickly — it never blocks waiting on the game.
-pub fn launch_game(appid: u32, entries: &[LaunchEntry], opts: &LaunchOptions) -> Result<LaunchOutcome> {
+pub fn launch_game(
+    appid: u32,
+    entries: &[LaunchEntry],
+    opts: &LaunchOptions,
+) -> Result<LaunchOutcome> {
     if opts.direct_launch
         && let Some(outcome) = try_direct_launch(appid, entries, opts)?
     {
@@ -263,7 +267,8 @@ fn select_launch_entry<'a>(entries: &'a [LaunchEntry], os: &str) -> Option<&'a L
 }
 
 fn oslist_contains(list: &str, os: &str) -> bool {
-    list.split(',').any(|item| item.trim().eq_ignore_ascii_case(os))
+    list.split(',')
+        .any(|item| item.trim().eq_ignore_ascii_case(os))
 }
 
 fn current_os() -> &'static str {
@@ -374,8 +379,11 @@ fn is_steam_running() -> bool {
 
 #[cfg(windows)]
 fn is_app_running(appid: u32) -> bool {
-    reg_query_dword(&format!(r"HKCU\Software\Valve\Steam\Apps\{appid}"), "Running")
-        .is_some_and(|v| v != 0)
+    reg_query_dword(
+        &format!(r"HKCU\Software\Valve\Steam\Apps\{appid}"),
+        "Running",
+    )
+    .is_some_and(|v| v != 0)
 }
 
 #[cfg(windows)]
@@ -650,13 +658,19 @@ mod tests {
         let app = installed_app(4);
         let entries = [os_agnostic_entry()];
         let opts = LaunchOptions::default(); // direct_launch = false
-        assert_eq!(plan_launch(Some(&app), &entries, true, &opts), LaunchPlan::Steam);
+        assert_eq!(
+            plan_launch(Some(&app), &entries, true, &opts),
+            LaunchPlan::Steam
+        );
     }
 
     #[test]
     fn plan_launch_defers_when_not_installed_or_not_complete() {
         let entries = [os_agnostic_entry()];
-        assert_eq!(plan_launch(None, &entries, true, &direct_opts()), LaunchPlan::Steam);
+        assert_eq!(
+            plan_launch(None, &entries, true, &direct_opts()),
+            LaunchPlan::Steam
+        );
         let updating = installed_app(1026); // fully-installed bit (4) not set
         assert_eq!(
             plan_launch(Some(&updating), &entries, true, &direct_opts()),
@@ -685,7 +699,11 @@ mod tests {
             .join("Terraria")
             .join("game.exe");
         match plan {
-            LaunchPlan::Direct { exe, workingdir, args } => {
+            LaunchPlan::Direct {
+                exe,
+                workingdir,
+                args,
+            } => {
                 assert_eq!(exe, expected_exe);
                 assert_eq!(workingdir, app.install_path());
                 assert_eq!(args, vec!["-fullscreen".to_owned()]);
@@ -738,8 +756,14 @@ mod tests {
                 ..Default::default()
             },
         ];
-        assert_eq!(select_launch_entry(&entries, "windows").unwrap().executable, "game.exe");
-        assert_eq!(select_launch_entry(&entries, "linux").unwrap().executable, "game_linux");
+        assert_eq!(
+            select_launch_entry(&entries, "windows").unwrap().executable,
+            "game.exe"
+        );
+        assert_eq!(
+            select_launch_entry(&entries, "linux").unwrap().executable,
+            "game_linux"
+        );
         // No entry names macOS → none selected.
         assert!(select_launch_entry(&entries, "macos").is_none());
     }
@@ -750,7 +774,10 @@ mod tests {
             executable: "game.exe".to_owned(),
             ..Default::default()
         }];
-        assert_eq!(select_launch_entry(&entries, "macos").unwrap().executable, "game.exe");
+        assert_eq!(
+            select_launch_entry(&entries, "macos").unwrap().executable,
+            "game.exe"
+        );
     }
 
     /// Live, machine-specific: dry-runs the full direct-launch chain (resolve Steam → find the
@@ -798,7 +825,10 @@ mod tests {
                 ..Default::default()
             },
         ];
-        assert_eq!(select_launch_entry(&entries, "windows").unwrap().executable, "game.exe");
+        assert_eq!(
+            select_launch_entry(&entries, "windows").unwrap().executable,
+            "game.exe"
+        );
     }
 
     #[test]

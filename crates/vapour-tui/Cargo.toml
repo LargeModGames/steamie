@@ -2,18 +2,21 @@
 name = "vapour-tui"
 version.workspace = true
 edition.workspace = true
-description = "Terminal UI for Vapour"
+description = "A terminal-native Steam client written in Rust — browse your library, chat, and launch games"
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 rust-version.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [[bin]]
 name = "vapour"
 path = "src/main.rs"
 
 [dependencies]
-vapour-core = { path = "../vapour-core" }
-vapour-api = { path = "../vapour-api" }
+vapour-core = { workspace = true }
+vapour-api = { workspace = true }
 vapour-protocol = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
