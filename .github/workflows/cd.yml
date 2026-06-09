@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -123,7 +123,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -173,7 +173,7 @@ jobs:
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -207,7 +207,7 @@ jobs:
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract version
         id: version
@@ -272,7 +272,7 @@ jobs:
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract version
         id: version
