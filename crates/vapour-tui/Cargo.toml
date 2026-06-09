@@ -1,9 +1,11 @@
 [package]
 name = "vapour-tui"
-version = "0.2.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "Terminal UI for Vapour"
-license = "GPL-3.0-only"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "vapour"
@@ -12,7 +14,7 @@ path = "src/main.rs"
 [dependencies]
 vapour-core = { path = "../vapour-core" }
 vapour-api = { path = "../vapour-api" }
-vapour-protocol = { path = "../../../vapour-protocol" }
+vapour-protocol = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 ratatui = { version = "0.30", features = ["crossterm"] }

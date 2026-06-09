@@ -1,9 +1,11 @@
 [package]
 name = "vapour-api"
-version = "0.2.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "Steam Web API and Store API client"
-license = "GPL-3.0-only"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 tokio = { workspace = true }
