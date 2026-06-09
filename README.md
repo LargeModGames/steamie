@@ -71,7 +71,7 @@ yay -S steamie
 brew install LargeModGames/steamie/steamie
 
 # Windows (winget)
-winget install LargeModGames.steamie
+winget install steamie
 ```
 
 Or download a prebuilt binary from [GitHub Releases](https://github.com/LargeModGames/steamie/releases/latest).
