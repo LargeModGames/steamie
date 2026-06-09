@@ -2,11 +2,18 @@
 
 ## [Unreleased]
 
+## [v0.4.2] 2026-06-09
+
+### Fixed
+
+- Packaging: `DRM-FREE-GAMES.md` now ships inside `steamie-core` so the crate publishes to crates.io (previously the embed path escaped the crate directory and broke `cargo publish`).
+- Release pipeline: the winget job builds the release-asset URL directly instead of querying the GitHub API, avoiding an eventual-consistency race that could fail the submission.
+
 ## [v0.4.1] 2026-06-09
 
 ### Added
 
-- **Experimental direct (no-Steam) launch**: Games on the community [`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) list can be launched straight from their executable so Steam never wakes (`[launch] direct_launch = true`). Executable resolution comes from PICS `config.installdir` + `config/launch` entries, with the install directory located on disk by parsing `libraryfolders.vdf` + `appmanifest_<appid>.acf`.
+- **Experimental direct (no-Steam) launch**: Games on the community [`DRM-FREE-GAMES.md`](crates/steamie-core/DRM-FREE-GAMES.md) list can be launched straight from their executable so Steam never wakes (`[launch] direct_launch = true`). Executable resolution comes from PICS `config.installdir` + `config/launch` entries, with the install directory located on disk by parsing `libraryfolders.vdf` + `appmanifest_<appid>.acf`.
 - **Silent Steam launch**: With `[launch] silent` (on by default), the Steam-mediated path starts Steam minimized to the tray with no window — the game appears, you never see Steam.
 - **Launch option controls**: Added `force_direct`, per-game `game_args` (keyed by appid), and global `extra_args` for arguments appended to every launch.
 

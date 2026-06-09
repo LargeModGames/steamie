@@ -16,7 +16,7 @@ Have an idea? Start a [Discussion](https://github.com/LargeModGames/steamie/disc
 issue. We love hearing what would make steamie better for you.
 
 ### 🎯 Add Games to the DRM-Free List
-[`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
+[`DRM-FREE-GAMES.md`](crates/steamie-core/DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
 **Steam fully closed** (used by the experimental direct-launch path). To add a game:
 1. Quit Steam entirely.
 2. Confirm the game still launches from its `steamapps/common/<game>/` executable.

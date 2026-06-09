@@ -1,6 +1,6 @@
 //! The community-maintained list of games that launch without the Steam client.
 //!
-//! The canonical list ships in the repo-root [`DRM-FREE-GAMES.md`](../../../DRM-FREE-GAMES.md) and is
+//! The canonical list ships alongside this crate as [`DRM-FREE-GAMES.md`](../DRM-FREE-GAMES.md) and is
 //! embedded into the binary at build time, so it works offline with no extra files to deploy. An
 //! optional per-user list at `~/.config/steamie/drm-free.md` (same markdown-table format) is merged
 //! on top. Used by the direct (no-Steam) launch path to decide which games to start without Steam.
@@ -9,11 +9,10 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// The repo-root list, baked in at compile time.
-const EMBEDDED_LIST: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../DRM-FREE-GAMES.md"
-));
+/// The bundled list, baked in at compile time. Lives in the crate root so it
+/// ships inside the published crate tarball (a path escaping the crate dir
+/// would break `cargo publish`).
+const EMBEDDED_LIST: &str = include_str!("../DRM-FREE-GAMES.md");
 
 static APPIDS: OnceLock<HashSet<u32>> = OnceLock::new();
 
