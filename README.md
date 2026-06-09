@@ -1,18 +1,18 @@
-# vapour
+# steamie
 
 > A terminal-native Steam client written in Rust, powered by [Ratatui](https://github.com/ratatui-org/ratatui).
 >
 > Browse your library, chat with friends, and launch games — all from a fast, keyboard-driven TUI,
 > with no browser and no Steam window in your way.
 
-[![Crates.io](https://img.shields.io/crates/v/vapour-tui.svg)](https://crates.io/crates/vapour-tui)
-[![CI](https://github.com/LargeModGames/vapour/actions/workflows/ci.yml/badge.svg)](https://github.com/LargeModGames/vapour/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/steamie.svg)](https://crates.io/crates/steamie)
+[![CI](https://github.com/LargeModGames/steamie/actions/workflows/ci.yml/badge.svg)](https://github.com/LargeModGames/steamie/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 ![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-informational)
 [![X](https://img.shields.io/badge/@LargeModGames-000000?logo=x&logoColor=white)](https://twitter.com/LargeModGames)
 
-> **Unofficial.** vapour is an independent project and is **not affiliated with, endorsed by, or
+> **Unofficial.** steamie is an independent project and is **not affiliated with, endorsed by, or
 > sponsored by Valve or Steam.** It talks to Steam's own connection-manager protocol the same way the
 > official client does; use it at your own discretion.
 
@@ -55,44 +55,44 @@ Want to record one? See CONTRIBUTING.md. -->
 
 ## Installation
 
-> vapour requires **Rust 1.85+** (it uses edition 2024) when building from source.
+> steamie requires **Rust 1.85+** (it uses edition 2024) when building from source.
 
 ```bash
-# Cargo (installs the `vapour` binary)
-cargo install vapour-tui
+# Cargo (installs the `steamie` binary)
+cargo install steamie
 
 # Arch Linux (AUR) — prebuilt binary (faster)
-yay -S vapour-bin
+yay -S steamie-bin
 
 # Arch Linux (AUR) — build from source
-yay -S vapour
+yay -S steamie
 
 # Homebrew (macOS)
-brew install LargeModGames/vapour/vapour
+brew install LargeModGames/steamie/steamie
 
 # Windows (winget)
-winget install LargeModGames.vapour
+winget install LargeModGames.steamie
 ```
 
-Or download a prebuilt binary from [GitHub Releases](https://github.com/LargeModGames/vapour/releases/latest).
+Or download a prebuilt binary from [GitHub Releases](https://github.com/LargeModGames/steamie/releases/latest).
 
 ### Build from source
 
 ```bash
-git clone https://github.com/LargeModGames/vapour.git
-cd vapour
+git clone https://github.com/LargeModGames/steamie.git
+cd steamie
 cargo build --release
-./target/release/vapour
+./target/release/steamie
 ```
 
-`cargo run --bin vapour` works too for a debug build. No special system libraries are required —
+`cargo run --bin steamie` works too for a debug build. No special system libraries are required —
 networking uses `rustls` and desktop notifications use `zbus`, so there's no OpenSSL, X11, or audio
 dependency to install.
 
 ## Configuration
 
-Configuration is optional — vapour runs with sensible defaults. To customize, create
-`~/.config/vapour/config.toml`:
+Configuration is optional — steamie runs with sensible defaults. To customize, create
+`~/.config/steamie/config.toml`:
 
 ```toml
 # api_key = "YOUR_STEAM_WEB_API_KEY"   # optional fallback; https://steamcommunity.com/dev/apikey
@@ -114,7 +114,7 @@ history_retention_days = 30     # local chat history kept; 0 = keep everything
 [launch]
 steam_path = ""                 # override; auto-detected (registry / default path) when empty
 dry_run = false                 # log the exact launch command instead of spawning it
-kill_steam_on_exit = false      # if vapour started Steam, shut it down when the game exits (best-effort)
+kill_steam_on_exit = false      # if steamie started Steam, shut it down when the game exits (best-effort)
 silent = true                   # start Steam minimized to tray (no window); false shows it
 direct_launch = false           # experimental: launch DRM-free-listed games with NO Steam running
 force_direct = false            # experimental: with direct_launch, try the direct path for any installed game
@@ -125,7 +125,7 @@ force_direct = false            # experimental: with direct_launch, try the dire
 
 ## Usage
 
-Run `vapour` to start the UI. Press `?` at any time for the in-app keybinding help.
+Run `steamie` to start the UI. Press `?` at any time for the in-app keybinding help.
 
 | Key | Action |
 | --- | ------ |
@@ -159,7 +159,7 @@ it with `direct_launch = true`; a game is eligible when it's on the community
 [`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) list and installed. Anything else falls back to the silent
 Steam launch above. The status line shows `▶ Launched X (no Steam)` when it goes direct.
 
-`kill_steam_on_exit` only ever shuts down a Steam that vapour itself started, and is best-effort
+`kill_steam_on_exit` only ever shuts down a Steam that steamie itself started, and is best-effort
 (reliable on Windows, weaker on Linux, a no-op on macOS). Set `dry_run = true` to preview the exact
 command a launch would run without starting anything.
 
@@ -168,7 +168,7 @@ command a launch would run without starting anything.
 [`DRM-FREE-GAMES.md`](DRM-FREE-GAMES.md) is a community-maintained table of Steam games that run with
 **Steam fully closed**. To add a game: quit Steam, confirm the game still launches from its
 `steamapps/common/<game>/` executable, then add a row with its AppID and name and open a PR. You can
-also keep a private list at `~/.config/vapour/drm-free.md` (same format).
+also keep a private list at `~/.config/steamie/drm-free.md` (same format).
 
 ## Limitations
 
@@ -185,11 +185,11 @@ also keep a private list at `~/.config/vapour/drm-free.md` (same format).
 
 ## Architecture
 
-vapour is a Cargo workspace with three crates:
+steamie is a Cargo workspace with three crates:
 
-- **`vapour-api`** — Steam Web API / Store API HTTP client.
-- **`vapour-core`** — config, session, caching, the game launcher, and local chat history.
-- **`vapour-tui`** — the ratatui terminal UI (produces the `vapour` binary).
+- **`steamie-api`** — Steam Web API / Store API HTTP client.
+- **`steamie-core`** — config, session, caching, the game launcher, and local chat history.
+- **`steamie`** — the ratatui terminal UI (produces the `steamie` binary).
 
 The raw Steam connection-manager protocol (WebSocket connection, auth, friends, service calls) lives
 in a **separate** crate, [**vapour-protocol**](https://github.com/LargeModGames/vapour-protocol)
@@ -198,7 +198,7 @@ in a **separate** crate, [**vapour-protocol**](https://github.com/LargeModGames/
 ## Development
 
 ```bash
-cargo run --bin vapour            # run (debug)
+cargo run --bin steamie            # run (debug)
 cargo build --release             # release build
 cargo check --workspace           # type-check everything
 cargo test --workspace            # run tests
@@ -216,7 +216,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
 - Preloading the conversation list from disk on startup
 - Quoted-argument grouping for launch options
 
-Have an idea? Open a [Discussion](https://github.com/LargeModGames/vapour/discussions) or an issue.
+Have an idea? Open a [Discussion](https://github.com/LargeModGames/steamie/discussions) or an issue.
 
 ## Contributing
 

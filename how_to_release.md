@@ -6,7 +6,7 @@ The workflow runs when you push a tag matching `v*.*.*`.
 ## Stable release
 
 1. Bump `version` in the root `Cargo.toml` (`[workspace.package]`) and the internal dependency
-   versions in `[workspace.dependencies]` (`vapour-api` / `vapour-core`) to match. Run the app once
+   versions in `[workspace.dependencies]` (`steamie-api` / `steamie-core`) to match. Run the app once
    to refresh `Cargo.lock`.
 2. Move the `Unreleased` items in `CHANGELOG.md` under a new version heading.
 3. Commit and push.
@@ -15,7 +15,7 @@ The workflow runs when you push a tag matching `v*.*.*`.
    git tag -a v0.4.1 -m "Release v0.4.1"
    git push origin v0.4.1
    ```
-5. Watch the build on the [Actions page](https://github.com/LargeModGames/vapour/actions).
+5. Watch the build on the [Actions page](https://github.com/LargeModGames/steamie/actions).
 6. Stable tags (no `-` suffix) trigger the publish jobs (crates.io, AUR, Homebrew, winget).
 
 ## Pre-release / canary
@@ -32,15 +32,15 @@ skipped (they only run for tags without a `-`).
 
 ## crates.io publish order
 
-vapour is a three-crate workspace. The CD workflow publishes them in dependency order with retries
+steamie is a three-crate workspace. The CD workflow publishes them in dependency order with retries
 to absorb index propagation delay:
 
 ```
-vapour-api  →  vapour-core  →  vapour-tui
+steamie-api  →  steamie-core  →  steamie
 ```
 
-The installable binary crate is `vapour-tui` (it produces the `vapour` binary), so end users run
-`cargo install vapour-tui`.
+The installable binary crate is `steamie` (it produces the `steamie` binary), so end users run
+`cargo install steamie`.
 
 ## Required repository secrets
 
@@ -55,8 +55,8 @@ The installable binary crate is `vapour-tui` (it produces the `vapour` binary), 
 
 The publish jobs push to repositories that must already exist:
 
-- **AUR:** `vapour` (build-from-source) and `vapour-bin` (prebuilt) packages.
-- **Homebrew:** a tap repo `LargeModGames/homebrew-vapour` with a `Formula/` directory.
+- **AUR:** `steamie` (build-from-source) and `steamie-bin` (prebuilt) packages.
+- **Homebrew:** a tap repo `LargeModGames/homebrew-steamie` with a `Formula/` directory.
 - **winget:** a fork of `microsoft/winget-pkgs` owned by `LargeModGames`.
 
 If you only want GitHub Releases for now, leave those secrets unset — the publish jobs will fail

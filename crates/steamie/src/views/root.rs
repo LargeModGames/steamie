@@ -90,7 +90,7 @@ fn draw_tabs(f: &mut Frame, app: &App, theme: &Theme, area: Rect) {
     };
 
     let tabs = Tabs::new(tab_titles)
-        .block(Block::default().borders(Borders::ALL).title(" vapour "))
+        .block(Block::default().borders(Borders::ALL).title(" steamie "))
         .select(selected)
         .style(Style::default().fg(theme.tab_inactive))
         .highlight_style(

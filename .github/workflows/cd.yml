@@ -11,7 +11,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  BINARY_NAME: vapour
+  BINARY_NAME: steamie
 
 jobs:
   build:
@@ -52,7 +52,7 @@ jobs:
         run: cargo install cargo-deb --locked
 
       - name: Build release binary
-        run: cargo build --release --locked --target ${{ matrix.target }} -p vapour-tui
+        run: cargo build --release --locked --target ${{ matrix.target }} -p steamie
 
       - name: Package binary (Unix)
         if: runner.os != 'Windows'
@@ -71,7 +71,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          cargo deb -p vapour-tui --no-build --target ${{ matrix.target }}
+          cargo deb -p steamie --no-build --target ${{ matrix.target }}
           DEB_PATH=$(ls target/${{ matrix.target }}/debian/*.deb)
           cp "$DEB_PATH" .
           sha256sum "$(basename "$DEB_PATH")" > "$(basename "$DEB_PATH").sha256"
@@ -156,10 +156,10 @@ jobs:
 
             ## Downloads
 
-            - On **Windows 10/11 (64-bit)** → `vapour-windows-x86_64.zip`
-            - On **Linux (Ubuntu, Arch, Fedora, etc.)** → `vapour-linux-x86_64.tar.gz`
-            - On **macOS with Intel CPU** → `vapour-macos-x86_64.tar.gz`
-            - On **macOS with Apple Silicon (M1/M2/M3+)** → `vapour-macos-aarch64.tar.gz`
+            - On **Windows 10/11 (64-bit)** → `steamie-windows-x86_64.zip`
+            - On **Linux (Ubuntu, Arch, Fedora, etc.)** → `steamie-linux-x86_64.tar.gz`
+            - On **macOS with Intel CPU** → `steamie-macos-x86_64.tar.gz`
+            - On **macOS with Apple Silicon (M1/M2/M3+)** → `steamie-macos-aarch64.tar.gz`
 
             Checksums (`.sha256`) are optional and only needed if you want to verify the download.
           draft: false
@@ -196,9 +196,9 @@ jobs:
             echo "::error::failed to publish $crate"
             return 1
           }
-          publish vapour-api
-          publish vapour-core
-          publish vapour-tui
+          publish steamie-api
+          publish steamie-core
+          publish steamie
 
   publish-aur:
     name: Publish to AUR
@@ -234,7 +234,7 @@ jobs:
 
       - name: Clone AUR repository
         run: |
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/vapour.git aur
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/steamie.git aur
 
       - name: Update PKGBUILD
         working-directory: aur
@@ -266,7 +266,7 @@ jobs:
           GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git push
 
   publish-aur-bin:
-    name: Publish to AUR (vapour-bin)
+    name: Publish to AUR (steamie-bin)
     needs: release
     runs-on: ubuntu-latest
     if: ${{ !contains(github.ref_name, '-') }}
@@ -284,7 +284,7 @@ jobs:
         id: sha256
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          BINARY_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-linux-x86_64.tar.gz"
+          BINARY_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/steamie-linux-x86_64.tar.gz"
           SHA256_BINARY=$(curl -sL "$BINARY_URL" | sha256sum | awk '{print $1}')
           echo "sha256_binary=$SHA256_BINARY" >> $GITHUB_OUTPUT
           LICENSE_URL="https://raw.githubusercontent.com/${{ github.repository }}/v${VERSION}/LICENSE"
@@ -305,7 +305,7 @@ jobs:
 
       - name: Clone AUR repository
         run: |
-          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/vapour-bin.git aur-bin
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/aur -o IdentitiesOnly=yes' git clone ssh://aur@aur.archlinux.org/steamie-bin.git aur-bin
 
       - name: Update PKGBUILD
         working-directory: aur-bin
@@ -371,11 +371,11 @@ jobs:
             exit 1
           }
 
-          komac update 'LargeModGames.vapour' --version "$Version" --submit --urls $Urls
+          komac update 'LargeModGames.steamie' --version "$Version" --submit --urls $Urls
         env:
           GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
           KOMAC_FORK_OWNER: LargeModGames
-          KOMAC_CREATED_WITH: vapour CD workflow
+          KOMAC_CREATED_WITH: steamie CD workflow
           KOMAC_CREATED_WITH_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   publish-homebrew:
@@ -393,9 +393,9 @@ jobs:
         id: sha256
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          AARCH64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-macos-aarch64.tar.gz"
+          AARCH64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/steamie-macos-aarch64.tar.gz"
           echo "sha256_aarch64=$(curl -sL "$AARCH64_URL" | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
-          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vapour-macos-x86_64.tar.gz"
+          X86_64_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/steamie-macos-x86_64.tar.gz"
           echo "sha256_x86_64=$(curl -sL "$X86_64_URL" | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Setup SSH for Homebrew tap
@@ -410,53 +410,53 @@ jobs:
       - name: Clone Homebrew tap repository
         run: |
           GIT_SSH_COMMAND='ssh -i ~/.ssh/homebrew_tap -o IdentitiesOnly=yes' \
-            git clone git@github.com:LargeModGames/homebrew-vapour.git homebrew-tap
+            git clone git@github.com:LargeModGames/homebrew-steamie.git homebrew-tap
 
       - name: Update formula
         working-directory: homebrew-tap
         run: |
           mkdir -p Formula
-          cat > Formula/vapour.rb << 'FORMULA_EOF'
+          cat > Formula/steamie.rb << 'FORMULA_EOF'
           # typed: false
           # frozen_string_literal: true
 
           # This formula is automatically updated by the CD workflow on each release.
           # Manual changes will be overwritten.
 
-          class Vapour < Formula
+          class Steamie < Formula
             desc "Terminal-native Steam client written in Rust"
-            homepage "https://github.com/LargeModGames/vapour"
+            homepage "https://github.com/LargeModGames/steamie"
             version "${{ steps.version.outputs.version }}"
             license "MIT"
 
             depends_on :macos
 
             on_arm do
-              url "https://github.com/LargeModGames/vapour/releases/download/v#{version}/vapour-macos-aarch64.tar.gz"
+              url "https://github.com/LargeModGames/steamie/releases/download/v#{version}/steamie-macos-aarch64.tar.gz"
               sha256 "${{ steps.sha256.outputs.sha256_aarch64 }}"
             end
 
             on_intel do
-              url "https://github.com/LargeModGames/vapour/releases/download/v#{version}/vapour-macos-x86_64.tar.gz"
+              url "https://github.com/LargeModGames/steamie/releases/download/v#{version}/steamie-macos-x86_64.tar.gz"
               sha256 "${{ steps.sha256.outputs.sha256_x86_64 }}"
             end
 
             def install
-              bin.install "vapour"
+              bin.install "steamie"
             end
 
             def caveats
               <<~EOS
-                vapour talks to Steam's connection-manager protocol. On first run, sign in with a
+                steamie talks to Steam's connection-manager protocol. On first run, sign in with a
                 QR code (default) or your Steam credentials.
 
-                vapour is unofficial and not affiliated with Valve or Steam.
-                More info: https://github.com/LargeModGames/vapour
+                steamie is unofficial and not affiliated with Valve or Steam.
+                More info: https://github.com/LargeModGames/steamie
               EOS
             end
 
             test do
-              assert_match "vapour", shell_output("#{bin}/vapour --version")
+              assert_match "steamie", shell_output("#{bin}/steamie --version")
             end
           end
           FORMULA_EOF
@@ -464,7 +464,7 @@ jobs:
       - name: Commit and push to Homebrew tap
         working-directory: homebrew-tap
         run: |
-          git add Formula/vapour.rb
+          git add Formula/steamie.rb
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "Update vapour to ${{ steps.version.outputs.version }}"
+          git commit -m "Update steamie to ${{ steps.version.outputs.version }}"
           GIT_SSH_COMMAND='ssh -i ~/.ssh/homebrew_tap -o IdentitiesOnly=yes' git push

@@ -20,14 +20,14 @@
 
 - **Game launching ("Launch Day")**: Press `l` on a library row (or `Enter`/`l` in the detail view) to launch the highlighted game; `L` opens a recently-played quick-launch overlay.
 - **Steam-mediated launch**: Launches via `steam -applaunch <appid>`, with Steam executable auto-detection on Windows (registry / default path), Linux (`PATH` / `~/.steam`), and macOS (`Steam.app`).
-- **Launch safeguards**: Added optional `kill_steam_on_exit` (only shuts down a Steam that vapour started) and `dry_run` (logs the exact command instead of spawning).
+- **Launch safeguards**: Added optional `kill_steam_on_exit` (only shuts down a Steam that steamie started) and `dry_run` (logs the exact command instead of spawning).
 
 ## [v0.3.0] 2026-06-07
 
 ### Added
 
 - **Real-time 1-on-1 chat ("We Need to Talk")**: A Chat tab with conversation list, scrollable history, and a composer. Messaging runs natively over the modern unified `FriendMessages.*` service.
-- **Local chat history**: Conversations are cached per-conversation under `~/.local/state/vapour/chat/` and lazily loaded before any save.
+- **Local chat history**: Conversations are cached per-conversation under `~/.local/state/steamie/chat/` and lazily loaded before any save.
 - **Notifications**: Terminal-bell (default) plus optional `notify-rust` desktop notifications, both configurable under `[chat]`.
 
 ### Fixed

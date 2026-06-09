@@ -85,7 +85,7 @@ pub fn auth_state_path() -> PathBuf {
         .or_else(dirs::config_dir)
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
         .unwrap_or_else(|| PathBuf::from(".config"))
-        .join("vapour")
+        .join("steamie")
         .join("auth.toml")
 }
 
@@ -145,7 +145,7 @@ mod tests {
             .expect("time went backwards")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "vapour-core-auth-tests-{}-{}",
+            "steamie-core-auth-tests-{}-{}",
             std::process::id(),
             nanos
         ))

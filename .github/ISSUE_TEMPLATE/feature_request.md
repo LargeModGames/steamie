@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for vapour
+about: Suggest an idea for steamie
 title: ''
 labels: enhancement
 assignees: ''

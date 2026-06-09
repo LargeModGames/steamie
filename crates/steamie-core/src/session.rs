@@ -1,5 +1,5 @@
 use anyhow::Result;
-use vapour_api::SteamApiClient;
+use steamie_api::SteamApiClient;
 use vapour_protocol::SteamClient;
 
 use crate::{

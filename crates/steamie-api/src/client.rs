@@ -22,7 +22,7 @@ pub struct SteamApiClient {
 impl SteamApiClient {
     pub fn new(api_key: Option<String>, steam_id: Option<String>) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent("Vapour/0.1.0")
+            .user_agent("Steamie/0.1.0")
             .build()
             .expect("failed to build HTTP client");
         Self {
@@ -42,7 +42,7 @@ impl SteamApiClient {
     fn require_api_key(&self) -> Result<&str> {
         self.api_key.as_deref().ok_or_else(|| {
             anyhow!(
-                "this feature requires an api_key in your config (~/.config/vapour/config.toml)"
+                "this feature requires an api_key in your config (~/.config/steamie/config.toml)"
             )
         })
     }

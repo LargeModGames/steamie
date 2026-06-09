@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use steamie_api::SteamApiClient;
 use tokio::task::JoinSet;
-use vapour_api::SteamApiClient;
 use vapour_protocol::RunCommand;
 
 use crate::app::App;
@@ -241,7 +241,7 @@ pub async fn handle_io(app: Arc<Mutex<App>>, client: Arc<SteamApiClient>, event:
             // Launching spawns a process (and shells out to reg.exe on Windows); keep it off the
             // async worker pool.
             let result = tokio::task::spawn_blocking(move || {
-                vapour_core::launch_game(appid, &entries, &opts)
+                steamie_core::launch_game(appid, &entries, &opts)
             })
             .await;
 

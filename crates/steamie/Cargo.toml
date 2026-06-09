@@ -1,5 +1,5 @@
 [package]
-name = "vapour-tui"
+name = "steamie"
 version.workspace = true
 edition.workspace = true
 description = "A terminal-native Steam client written in Rust — browse your library, chat, and launch games"
@@ -11,12 +11,12 @@ keywords.workspace = true
 categories.workspace = true
 
 [[bin]]
-name = "vapour"
+name = "steamie"
 path = "src/main.rs"
 
 [dependencies]
-vapour-core = { workspace = true }
-vapour-api = { workspace = true }
+steamie-core = { workspace = true }
+steamie-api = { workspace = true }
 vapour-protocol = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }

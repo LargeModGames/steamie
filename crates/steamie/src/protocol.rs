@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use crate::io_event::IoEvent;
+use steamie_api::{Achievement, Game};
+use steamie_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use tokio::{
     sync::mpsc,
     time::{Duration, sleep},
 };
-use vapour_api::{Achievement, Game};
-use vapour_core::{AuthMethod as ConfigAuthMethod, AuthState, Session};
 use vapour_protocol::{
     AuthEvent, AuthMethod, ChatMessage, Error as ProtocolError, FriendsEvent, GuardKind, LoggedOn,
     Persona, RunCommand,
@@ -457,7 +457,7 @@ fn record_message(app: &mut App, message: ChatMessage, incoming: bool) {
     let viewing = app.is_viewing_conversation(steamid);
 
     let convo = app.ensure_conversation(steamid);
-    let added = vapour_core::chat_history::merge(&mut convo.messages, std::iter::once(message));
+    let added = steamie_core::chat_history::merge(&mut convo.messages, std::iter::once(message));
     if !added {
         return;
     }
@@ -485,7 +485,7 @@ fn record_message(app: &mut App, message: ChatMessage, incoming: bool) {
 fn record_recent_messages(app: &mut App, steamid: u64, messages: Vec<ChatMessage>) {
     let viewing = app.is_viewing_conversation(steamid);
     let convo = app.ensure_conversation(steamid);
-    let added = vapour_core::chat_history::merge(&mut convo.messages, messages);
+    let added = steamie_core::chat_history::merge(&mut convo.messages, messages);
     let snapshot = added.then(|| convo.messages.clone());
     if let Some(snapshot) = snapshot {
         persist(app, steamid, snapshot);
@@ -516,7 +516,7 @@ fn notify_new_message(app: &App, steamid: u64) {
         // Spawn so a slow D-Bus round-trip never stalls the event loop or the render.
         std::thread::spawn(move || {
             let _ = notify_rust::Notification::new()
-                .summary(&format!("Vapour — {name}"))
+                .summary(&format!("Steamie — {name}"))
                 .body("New message")
                 .show();
         });

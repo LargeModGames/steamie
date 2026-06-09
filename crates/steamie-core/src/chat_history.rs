@@ -1,6 +1,6 @@
 //! Disk-backed local cache of 1-on-1 chat history.
 //!
-//! One JSON file per conversation partner under `~/.local/state/vapour/chat/<steamid>.json`
+//! One JSON file per conversation partner under `~/.local/state/steamie/chat/<steamid>.json`
 //! (same state-dir resolver as [`crate::auth`]). Reads are best-effort: a missing or corrupt
 //! file yields an empty history rather than an error. Writes prune to the configured retention
 //! window first.
@@ -121,7 +121,7 @@ pub fn chat_history_dir() -> PathBuf {
         .or_else(dirs::config_dir)
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
         .unwrap_or_else(|| PathBuf::from(".config"))
-        .join("vapour")
+        .join("steamie")
         .join("chat")
 }
 
@@ -146,7 +146,7 @@ mod tests {
             .expect("time")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "vapour-chat-tests-{}-{}",
+            "steamie-chat-tests-{}-{}",
             std::process::id(),
             nanos
         ))
